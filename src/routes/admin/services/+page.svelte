@@ -1,4 +1,3 @@
-<!-- src/routes/admin/services/+page.svelte -->
 <script lang="ts">
   import { goto } from '$app/navigation';
   
@@ -11,24 +10,23 @@
     imagePreview?: string | null;
   }
   
-  // State variables
-  let sectionTitle: string = 'Our Services';
-  let sectionDescription: string = '';
-  let showAddServiceModal: boolean = false;
-  let showDeleteModal: boolean = false;
-  let editingService: Service | null = null;
-  let deletingServiceId: number | null = null;
-  let showSaveNotification: boolean = false;
-  let showSuccessModal: boolean = false;
+  // State variables using Svelte 5 runes
+  let sectionTitle = $state('Our Services');
+  let sectionDescription = $state('');
+  let showAddServiceModal = $state(false);
+  let showDeleteModal = $state(false);
+  let editingService = $state<Service | null>(null);
+  let deletingServiceId = $state<number | null>(null);
+  let showSuccessModal = $state(false);
   
   // New service form data
-  let newServiceName: string = '';
-  let newServiceDescription: string = '';
-  let newServiceImage: HTMLInputElement | null = null;
-  let imagePreviewUrl: string = '';
+  let newServiceName = $state('');
+  let newServiceDescription = $state('');
+  let newServiceImage = $state<HTMLInputElement | null>(null);
+  let imagePreviewUrl = $state('');
   
   // Services data
-  let services: Service[] = [
+  let services = $state<Service[]>([
     {
       id: 1,
       image: '/api/placeholder/80/80',
@@ -43,7 +41,7 @@
       description: 'IOS and Android apps',
       imagePreview: null
     }
-  ];
+  ]);
   
   function handleAddService(): void {
     showAddServiceModal = true;
@@ -103,6 +101,21 @@
     const file = target.files?.[0];
     
     if (file) {
+      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('File size exceeds 5MB. Please select a smaller file.');
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
+        return;
+      }
+
+      console.log('Service image selected:', file.name);
       const reader = new FileReader();
       reader.onload = (e: ProgressEvent<FileReader>) => {
         if (e.target?.result) {
@@ -176,94 +189,163 @@
   function handleModalContentClick(event: MouseEvent): void {
     event.stopPropagation();
   }
+
+  function handleDragOver(event: DragEvent): void {
+    event.preventDefault();
+    const target = event.currentTarget as HTMLElement;
+    target.style.borderColor = '#2448B1';
+    target.style.background = '#eff6ff';
+  }
+  
+  function handleDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    const target = event.currentTarget as HTMLElement;
+    target.style.borderColor = '#d1d5db';
+    target.style.background = '#f9fafb';
+  }
+  
+  function handleDrop(event: DragEvent): void {
+    event.preventDefault();
+    const target = event.currentTarget as HTMLElement;
+    target.style.borderColor = '#d1d5db';
+    target.style.background = '#f9fafb';
+    
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('File size exceeds 5MB. Please select a smaller file.');
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
+        return;
+      }
+
+      console.log('File dropped:', file.name);
+      const reader = new FileReader();
+      reader.onload = function(e: ProgressEvent<FileReader>) {
+        const result = e.target?.result as string;
+        imagePreviewUrl = result;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
 </script>
 
 <svelte:head>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 </svelte:head>
 
-<div class="services-page">
-  <div class="services-content">
+<div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
+  <div class="p-0 pb-4 flex flex-col gap-3">
     <!-- Header Card -->
-    <div class="header-card">
-      <div class="header-content">
+    <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
+      <div class="flex justify-between items-center">
         <div>
-          <h1 class="header-title">Services</h1>
-          <p class="header-subtitle">Manage services page content</p>
+          <h1 class="text-white text-xl font-bold mb-0.5 leading-tight">Services</h1>
+          <p class="text-white text-sm font-normal m-0">Manage services page content</p>
         </div>
-        <div class="header-actions">
+        <div class="flex items-center gap-2">
           <!-- Save Changes Button -->
-          <button on:click={saveChanges} class="save-changes-btn" type="button">
-            <span class="material-symbols-outlined">save</span>
+          <button 
+            on:click={saveChanges} 
+            class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-base">save</span>
             Save Changes
           </button>
           
           <!-- Settings Button -->
-          <button class="settings-btn" type="button" on:click={handleSettingsClick}>
-            <span class="material-symbols-outlined settings-icon">settings</span>
+          <button 
+            class="bg-transparent border-none p-1.5 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center" 
+            type="button" 
+            on:click={handleSettingsClick}
+          >
+            <span class="material-symbols-outlined text-base text-white cursor-pointer">settings</span>
           </button>
         </div>
       </div>
     </div>
 
     <!-- Section Settings -->
-    <div class="section-settings">
-      <h3 class="section-title">Section Settings</h3>
+    <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
+      <h3 class="text-base font-semibold text-gray-800 mb-3">Section Settings</h3>
       
-      <div class="form-group">
-        <label for="section_title">Section Title</label>
+      <div class="mb-3 last:mb-0">
+        <label for="section_title" class="block mb-1 font-semibold text-gray-700 text-xs">Section Title</label>
         <input 
           type="text" 
           id="section_title" 
           bind:value={sectionTitle}
           placeholder="Enter section title"
+          class="w-full py-2 px-2.5 border border-gray-300 rounded-md text-xs text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
         />
       </div>
       
-      <div class="form-group">
-        <label for="section_description">Section Description</label>
+      <div class="mb-0">
+        <label for="section_description" class="block mb-1 font-semibold text-gray-700 text-xs">Section Description</label>
         <textarea 
           id="section_description" 
           bind:value={sectionDescription}
           placeholder="Enter section description"
           rows="3"
+          class="w-full py-2 px-2.5 border border-gray-300 rounded-md text-xs text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 resize-y min-h-[60px] focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
         ></textarea>
       </div>
     </div>
 
     <!-- Manage Services -->
-    <div class="manage-services">
-      <div class="services-header">
-        <h3 class="section-title">Manage Services</h3>
-        <button on:click={handleAddService} class="add-service-btn" type="button">
-          <span class="material-symbols-outlined">add</span>
+    <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-base font-semibold text-gray-800">Manage Services</h3>
+        <button 
+          on:click={handleAddService} 
+          class="bg-green-600 hover:bg-green-700 text-white border-none py-1.5 px-2.5 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1 transition-colors"
+          type="button"
+        >
+          <span class="material-symbols-outlined text-sm">add</span>
           Add Services
         </button>
       </div>
 
       <!-- Services Table -->
-      <div class="services-table">
-        <div class="table-header">
-          <div class="col-image">Image</div>
-          <div class="col-type">Type</div>
-          <div class="col-description">Description</div>
-          <div class="col-actions">Actions</div>
+      <div class="border border-gray-200 rounded-md overflow-hidden">
+        <div class="bg-[#2448B1] text-white grid grid-cols-[70px_1fr_1fr_100px] p-2.5 font-semibold text-xs">
+          <div>Image</div>
+          <div class="text-white">Type</div>
+          <div class="text-white">Description</div>
+          <div>Actions</div>
         </div>
         
         {#each services as service (service.id)}
-          <div class="table-row">
-            <div class="col-image">
-              <div class="service-image">
-                <img src={service.image} alt="Service {service.type}" />
+          <div class="grid grid-cols-[70px_1fr_1fr_100px] p-2.5 border-b border-gray-200 last:border-b-0 items-center bg-white hover:bg-gray-50">
+            <div>
+              <div class="w-10 h-10 rounded overflow-hidden bg-gray-100">
+                <img src={service.image} alt="Service {service.type}" class="w-full h-full object-cover" />
               </div>
             </div>
-            <div class="col-type">{service.type}</div>
-            <div class="col-description">{service.description}</div>
-            <div class="col-actions">
-              <button on:click={() => handleEditService(service)} class="action-btn edit-btn" type="button">
+            <div class="text-xs text-gray-700">{service.type}</div>
+            <div class="text-xs text-gray-700">{service.description}</div>
+            <div class="flex gap-1">
+              <button 
+                on:click={() => handleEditService(service)} 
+                class="py-1 px-2 border-none rounded bg-[#1E3A8A] text-white cursor-pointer text-[10px] font-semibold transition-all duration-200"
+                type="button"
+              >
                 Edit
               </button>
-              <button on:click={() => handleDeleteService(service.id)} class="action-btn delete-btn" type="button">
+              <button 
+                on:click={() => handleDeleteService(service.id)} 
+                class="py-1 px-2 border-none rounded bg-[#FF0000] text-white cursor-pointer text-[10px] font-semibold transition-all duration-200"
+                type="button"
+              >
                 Delete
               </button>
             </div>
@@ -277,118 +359,136 @@
   {#if showAddServiceModal}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="modal-overlay" on:click={handleModalClick}>
-      <div class="modal" on:click={handleModalContentClick}>
-        <div class="modal-header">
-          <h3>{editingService ? 'Edit Service' : 'Add Service'}</h3>
-          <button on:click={closeModal} class="modal-close" type="button">
-            <span class="material-symbols-outlined">close</span>
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-5 box-border" on:click={handleModalClick}>
+      <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click={handleModalContentClick}>
+        <div class="p-4 px-5 border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-base font-semibold text-gray-800 m-0">{editingService ? 'Edit Service' : 'Add Service'}</h3>
+          <button 
+            on:click={closeModal} 
+            class="bg-transparent border-none cursor-pointer p-1 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-base">close</span>
           </button>
         </div>
         
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="service_name">Service Name</label>
+        <div class="p-4 px-5">
+          <div class="mb-3 last:mb-0">
+            <label for="service_name" class="block mb-1 font-semibold text-gray-700 text-xs">Service Name</label>
             <input 
               type="text" 
               id="service_name"
               bind:value={newServiceName}
               placeholder={editingService ? "Managed services" : "add service name"}
+              class="w-full py-2 px-2.5 border border-gray-300 rounded-md text-xs text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
             />
           </div>
           
-          <div class="form-group">
-            <label for="service_description">Description</label>
+          <div class="mb-3 last:mb-0">
+            <label for="service_description" class="block mb-1 font-semibold text-gray-700 text-xs">Description</label>
             <textarea 
               id="service_description"
               bind:value={newServiceDescription}
               placeholder={editingService ? "Custom website development" : "add description"}
               rows="3"
+              class="w-full py-2 px-2.5 border border-gray-300 rounded-md text-xs text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 resize-y min-h-[60px] focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
             ></textarea>
           </div>
           
-          <div class="form-group">
-            <label for="service_image">Services Image</label>
+          <div class="mb-0">
+            <label for="service_image" class="block mb-1 font-semibold text-gray-700 text-xs">Services Image</label>
             <!-- svelte-ignore a11y-click-events-have-key-events -->
             <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="image-upload-area" on:click={handleImageAreaClick}>
+            <div 
+              class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer transition-all duration-200 relative hover:border-[#2448B1] hover:bg-slate-50" 
+              on:click={handleImageAreaClick}
+              on:dragover={handleDragOver}
+              on:dragleave={handleDragLeave}
+              on:drop={handleDrop}
+            >
               {#if imagePreviewUrl}
-                <div class="image-preview">
-                  <img src={imagePreviewUrl} alt="Service preview" />
-                  <div class="image-overlay">
-                    <span>New image</span>
-                    <span class="image-hint">click to change image</span>
-                  </div>
+                <div class="flex flex-col items-center">
+                  <img src={imagePreviewUrl} alt="Service preview" class="w-32 h-24 object-contain rounded-md shadow-sm mb-2" />
+                  <p class="text-[#2448B1] text-xs font-medium">Click to change image</p>
                 </div>
               {:else}
-                <div class="upload-placeholder">
+                <div class="text-gray-500 text-xs">
                   <span>Click to upload image</span>
                 </div>
               {/if}
               <input 
                 type="file" 
                 id="service_image"
-                accept="image/*" 
+                accept="image/jpeg,image/png,image/svg+xml" 
                 on:change={handleImageUpload}
                 style="display: none;"
                 bind:this={newServiceImage}
               />
             </div>
+            <p class="text-gray-500 text-xs mt-2 text-center">File must be JPG, PNG, or SVG. Maximum size: 5MB.</p>
           </div>
           
-          <div class="modal-actions">
-            <button on:click={closeModal} class="btn-cancel" type="button">Cancel</button>
-            <button on:click={saveService} class="btn-save" type="button">Save</button>
+          <div class="flex justify-end gap-2 mt-4">
+            <button 
+              on:click={closeModal} 
+              class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button 
+              on:click={saveService} 
+              class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white"
+              type="button"
+            >
+              Save
+            </button>
           </div>
         </div>
       </div>
     </div>
   {/if}
 
-  <!-- Delete Confirmation Modal - New Design -->
+  <!-- Delete Confirmation Modal -->
   {#if showDeleteModal}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="delete-modal-overlay show" on:click={handleDeleteModalClick}>
-      <div class="delete-modal-content" on:click={handleModalContentClick}>
-        <!-- Close button in top right -->
-        <button class="delete-modal-close" on:click={closeDeleteModal}>
-          <span class="material-symbols-outlined">close</span>
+    <div class="fixed inset-0 w-full h-full bg-black/60 flex items-center justify-center z-[1001] p-4" on:click={handleDeleteModalClick} role="button" tabindex="0" on:keydown={() => {}}>
+      <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center">
+        <button class="absolute top-3 right-3 text-gray-400 bg-none border-none cursor-pointer p-1.5 rounded hover:bg-gray-100 hover:text-gray-600" on:click={closeDeleteModal}>
+          <span class="material-symbols-outlined text-[16px]">close</span>
         </button>
-        
-        <!-- Red circular X icon -->
-        <div class="delete-icon-circle">
-          <span class="material-symbols-outlined delete-x-icon">close</span>
+        <div class="w-[60px] h-[60px] bg-[#ff0000] rounded-full mx-auto mb-4 flex items-center justify-center">
+          <span class="material-symbols-outlined text-white text-[28px] font-bold">close</span>
         </div>
-        
-        <!-- Title -->
-        <h2 class="delete-modal-title">Delete this service?</h2>
-        
-        <!-- Subtitle -->
-        <p class="delete-modal-subtitle">This action cannot be undone.</p>
-        
-        <!-- Delete button -->
-        <button class="delete-confirm-btn" on:click={confirmDelete}>
-          Delete
-        </button>
+        <h3 class="text-[18px] font-bold text-[#1e293b] m-0 mb-2">Delete this service?</h3>
+        <p class="text-[13px] text-[#6b7280] m-0">This action cannot be undone.</p>
+        <button 
+          class="bg-[#ff0000] text-white px-6 py-2 rounded-md text-[12px] font-bold mt-4 cursor-pointer hover:bg-[#dc2626]" 
+          on:click={confirmDelete}
+        >Delete</button>
       </div>
     </div>
   {/if}
 
-  <!-- Success Modal -->
+  <!-- Success Notification Modal -->
   {#if showSuccessModal}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="success-modal-overlay" on:click={handleSuccessModalClick}>
-      <div class="success-modal">
-        <div class="success-modal-body">
-          <div class="success-icon">
-            <span class="material-symbols-outlined">check</span>
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick}>
+      <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
+        <div class="p-8 text-center relative">
+          <div class="w-16 h-16 bg-green-500 rounded-full mx-auto mb-5 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white text-3xl font-semibold">check</span>
           </div>
-          <h3 class="success-title">Changes Saved</h3>
-          <p class="success-message">Your changes have been saved.</p>
-          <button on:click={closeSuccessModal} class="success-close" type="button">
-            <span class="material-symbols-outlined">close</span>
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">Changes Saved</h3>
+          <p class="text-sm text-gray-600">Your changes have been saved.</p>
+          <button 
+            on:click={closeSuccessModal} 
+            class="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
       </div>
@@ -397,804 +497,20 @@
 </div>
 
 <style>
-  /* Services Page Container */
-  .services-page {
-    width: 100%;
-    min-height: 100vh;
-    background-color: #ECF6F9;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: #1e293b;
-    line-height: 1.4;
-  }
-
-  .services-content {
-    padding: 0 0 16px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  /* Header Card */
-  .header-card {
-    background: #2448B1;
-    border-radius: 8px;
-    margin: 16px 16px 0 16px;
-    padding: 16px;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    border: 1px solid #e5e7eb;
-  }
-
-  .header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .header-title {
-    color: white;
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 2px 0;
-    line-height: 1.2;
-  }
-
-  .header-subtitle {
-    color: white;
-    font-size: 13px;
-    font-weight: 400;
-    margin: 0;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .settings-btn {
-    background: none;
-    border: none;
-    padding: 6px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .settings-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .save-changes-btn {
-    background: #16A34A;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background-color 0.2s;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  }
-
-  .save-changes-btn:hover {
-    background: #15803d;
-    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .settings-icon {
-    font-size: 16px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .settings-icon:hover {
-    color: rgba(255, 255, 255, 0.8);
-    transform: rotate(90deg);
-  }
-
-  /* Content Cards */
-  .section-settings, .manage-services {
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    border: 1px solid #e5e7eb;
-    margin: 0 16px;
-  }
-
-  .section-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 12px;
-  }
-
-  .form-group {
-    margin-bottom: 12px;
-  }
-
-  .form-group:last-child {
-    margin-bottom: 0;
-  }
-
-  .form-group label {
-    display: block;
-    margin-bottom: 4px;
-    font-weight: 600;
-    color: #374151;
-    font-size: 12px;
-  }
-
-  .form-group input,
-  .form-group textarea {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 12px;
-    color: #374151;
-    background: white;
-    transition: all 0.2s ease;
-    font-family: inherit;
-  }
-
-  .form-group input::placeholder,
-  .form-group textarea::placeholder {
-    color: #9ca3af;
-  }
-
-  .form-group input:focus,
-  .form-group textarea:focus {
-    outline: none;
-    border-color: #2448B1;
-    box-shadow: 0 0 0 3px rgba(36, 72, 177, 0.1);
-  }
-
-  .form-group textarea {
-    resize: vertical;
-    min-height: 60px;
-  }
-
-  /* Services Management */
-  .services-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  
-  .add-service-btn {
-    background: #16A34A;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: background-color 0.2s;
-  }
-
-  .add-service-btn:hover {
-    background: #15803d;
-  }
-
-  /* Services Table */
-  .services-table {
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    overflow: hidden;
-  }
-
-  .table-header {
-    background: #4f6cc9;
-    color: white;
-    display: grid;
-    grid-template-columns: 70px 1fr 1fr 100px;
-    padding: 10px;
-    font-weight: 600;
-    font-size: 12px;
-  }
-
-  .table-header .col-type,
-  .table-header .col-description {
-    color: white;
-  }
-
-  .table-row {
-    display: grid;
-    grid-template-columns: 70px 1fr 1fr 100px;
-    padding: 10px;
-    border-bottom: 1px solid #e5e7eb;
-    align-items: center;
-    background: white;
-  }
-
-  .table-row:hover {
-    background: #f9fafb;
-  }
-
-  .table-row:last-child {
-    border-bottom: none;
-  }
-
-  .service-image {
-    width: 40px;
-    height: 40px;
-    border-radius: 4px;
-    overflow: hidden;
-    background: #f3f4f6;
-  }
-
-  .service-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .col-type, .col-description {
-    font-size: 12px;
-    color: #374151;
-  }
-
-  .col-actions {
-    display: flex;
-    gap: 4px;
-  }
-
-  .action-btn {
-    padding: 4px 8px;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: 600;
-    transition: all 0.2s;
-  }
-
-  .edit-btn {
-    background: #1E3A8A;
-    color: white;
-  }
-
-  .edit-btn:hover {
-    background: #1e40af;
-  }
-
-  .delete-btn {
-    background: #FF0000;
-    color: white;
-  }
-
-  .delete-btn:hover {
-    background: #dc2626;
-  }
-
-  /* Delete Modal Styles - Compact */
-  .delete-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(4px);
-  }
-
-  .delete-modal-overlay.show {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .delete-modal-content {
-    background: white;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 320px;
-    padding: 24px 24px 20px;
-    text-align: center;
-    position: relative;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    transform: scale(0.9) translateY(-20px);
-    transition: all 0.3s ease;
-  }
-
-  .delete-modal-overlay.show .delete-modal-content {
-    transform: scale(1) translateY(0);
-  }
-
-  .delete-modal-close {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-  }
-
-  .delete-modal-close:hover {
-    background: #f3f4f6;
-    color: #6b7280;
-  }
-
-  .delete-modal-close .material-symbols-outlined {
-    font-size: 16px;
-  }
-
-  .delete-icon-circle {
-    width: 60px;
-    height: 60px;
-    background: #ff3333;
-    border-radius: 50%;
-    margin: 0 auto 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px rgba(255, 51, 51, 0.3);
-    animation: deleteIconBounce 0.6s ease-out;
-  }
-
-  @keyframes deleteIconBounce {
-    0% {
-      transform: scale(0);
-      opacity: 0;
-    }
-    50% {
-      transform: scale(1.1);
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-
-  .delete-x-icon {
-    color: white;
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .delete-modal-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0 0 6px 0;
-    letter-spacing: -0.3px;
-  }
-
-  .delete-modal-subtitle {
-    font-size: 13px;
-    color: #9ca3af;
-    margin: 0 0 20px 0;
-    font-weight: 400;
-  }
-
-  .delete-confirm-btn {
-    background: #ff3333;
-    color: white;
-    border: none;
-    padding: 10px 24px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 16px rgba(255, 51, 51, 0.3);
-    text-transform: none;
-    letter-spacing: 0.3px;
-    min-width: 80px;
-  }
-
-  .delete-confirm-btn:hover {
-    background: #e60000;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(255, 51, 51, 0.4);
-  }
-
-  .delete-confirm-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 16px rgba(255, 51, 51, 0.3);
-  }
-
-  /* Modal */
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .modal {
-    background: white;
-    border-radius: 8px;
-    width: 400px;
-    max-width: 90%;
-    max-height: 90%;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  }
-
-  .modal-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .modal-header h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0;
-  }
-
-  .modal-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    color: #6b7280;
-  }
-
-  .modal-close:hover {
-    background: #f3f4f6;
-    color: #374151;
-  }
-
-  .modal-body {
-    padding: 16px 20px;
-  }
-
-  .image-upload-area {
-    border: 2px dashed #d1d5db;
-    border-radius: 6px;
-    padding: 16px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-  }
-
-  .image-upload-area:hover {
-    border-color: #2448B1;
-    background: #f8fafc;
-  }
-
-  .upload-placeholder {
-    color: #6b7280;
-    font-size: 12px;
-  }
-
-  .image-preview {
-    position: relative;
-    display: inline-block;
-  }
-
-  .image-preview img {
-    width: 80px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 6px;
-  }
-
-  .image-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(59, 130, 246, 0.9);
-    color: white;
-    border-radius: 6px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-  }
-
-  .image-hint {
-    font-size: 9px;
-    opacity: 0.8;
-    margin-top: 2px;
-  }
-
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
-  }
-
-  .btn-cancel, .btn-save {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    transition: all 0.2s;
-  }
-
-  .btn-cancel {
-    background: #5A5A5A;
-    color: white;
-  }
-
-  .btn-cancel:hover {
-    background: #4b5563;
-  }
-
-  .btn-save {
-    background: #1E3A8A;
-    color: white;
-  }
-
-  .btn-save:hover {
-    background: #1e40af;
-  }
-
-  /* Success Modal */
-  .success-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1001;
-  }
-
-  .success-modal {
-    background: white;
-    border-radius: 8px;
-    width: 280px;
-    max-width: 90%;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    position: relative;
-  }
-
-  .success-modal-body {
-    padding: 24px 20px;
-    text-align: center;
-    position: relative;
-  }
-
-  .success-icon {
-    width: 50px;
-    height: 50px;
-    background: #10b981;
-    border-radius: 50%;
-    margin: 0 auto 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .success-icon .material-symbols-outlined {
-    color: white;
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .success-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 4px 0;
-  }
-
-  .success-message {
-    font-size: 12px;
-    color: #6b7280;
-    margin: 0;
-  }
-
-  .success-close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    color: #9ca3af;
-    transition: all 0.2s;
-  }
-
-  .success-close:hover {
-    background: #f3f4f6;
-    color: #6b7280;
-  }
-
-  .success-close .material-symbols-outlined {
-    font-size: 16px;
-  }
-
+  @reference "tailwindcss";
   :global(.material-symbols-outlined) {
     font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
     font-size: 16px;
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .services-content {
-      padding: 0 0 12px 0;
-    }
-    
-    .header-card {
-      margin: 12px 12px 0 12px;
-      padding: 12px;
-    }
-    
-    .header-content {
-      flex-direction: column;
-      gap: 8px;
-      align-items: flex-start;
-    }
-    
-    .header-actions {
-      width: 100%;
-      justify-content: flex-end;
-    }
-    
-    .header-title {
-      font-size: 18px;
-    }
-    
-    .section-settings, .manage-services {
-      margin: 0 12px;
-    }
-    
-    .table-header, .table-row {
-      grid-template-columns: 60px 1fr 1fr 80px;
-      padding: 8px;
-    }
-    
-    .modal {
-      width: 95%;
-    }
-
-    .success-modal {
-      width: 95%;
-    }
-
-    .delete-modal-content {
-      width: 95%;
-      margin: 12px;
-      padding: 20px 20px 16px;
-    }
-
-    .delete-icon-circle {
-      width: 50px;
-      height: 50px;
-      margin-bottom: 12px;
-    }
-
-    .delete-x-icon {
-      font-size: 24px;
-    }
-
-    .delete-modal-title {
-      font-size: 16px;
-    }
-
-    .delete-modal-subtitle {
-      font-size: 12px;
-      margin-bottom: 16px;
-    }
-
-    .delete-confirm-btn {
-      padding: 8px 20px;
-      font-size: 12px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .header-card {
-      margin: 8px 8px 0 8px;
-      padding: 10px;
-    }
-    
-    .section-settings, .manage-services {
-      margin: 0 8px;
-      padding: 12px;
-    }
-    
-    .table-header, .table-row {
-      grid-template-columns: 50px 1fr 1fr 70px;
-      padding: 6px;
-      font-size: 10px;
-    }
-    
-    .action-btn {
-      padding: 3px 6px;
-      font-size: 9px;
-    }
-    
-    .service-image {
-      width: 32px;
-      height: 32px;
-    }
-
-    .delete-modal-content {
-      padding: 16px 16px 12px;
-    }
-
-    .delete-icon-circle {
-      width: 40px;
-      height: 40px;
-      margin-bottom: 10px;
-    }
-
-    .delete-x-icon {
-      font-size: 20px;
-    }
-
-    .delete-modal-title {
-      font-size: 14px;
-    }
-
-    .delete-confirm-btn {
-      padding: 7px 16px;
-      font-size: 11px;
-    }
-  }
-
-  /* Enhanced Focus States */
-  .save-changes-btn:focus,
-  .add-service-btn:focus,
-  .edit-btn:focus,
-  .delete-btn:focus,
-  .btn-cancel:focus,
-  .btn-save:focus,
-  .delete-confirm-btn:focus {
-    outline: 3px solid rgba(59, 130, 246, 0.5);
-    outline-offset: 2px;
-  }
-
-  /* Smooth Transitions */
-  * {
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    background: transparent !important;
   }
 </style>

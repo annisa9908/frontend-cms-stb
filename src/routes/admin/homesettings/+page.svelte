@@ -2,36 +2,53 @@
   import { createEventDispatcher } from 'svelte';
   import { goto } from '$app/navigation';
   
+  // Define dispatcher with typed events
   const dispatch = createEventDispatcher<{
     save: { title: string; description: string };
     logoUpdate: { url: string };
     imageUpdate: { url: string };
   }>();
-  
-  // Modal state types
-  let deleteType: 'logo' | 'image' | '' = '';
-  let showEditCompanyLogoModal: boolean = false;
-  let showEditImageModal: boolean = false;
-  let showSuccessModal: boolean = false;
-  let showDeleteModal: boolean = false;
-  let showSaveNotification: boolean = false;
+
+  // Reactive state using runes
+  let deleteType = $state<'logo' | 'image' | ''>('');
+  let showEditCompanyLogoModal = $state(false);
+  let showEditImageModal = $state(false);
+  let showSuccessModal = $state(false);
+  let showDeleteModal = $state(false);
   
   // File input references
-  let logoFile: HTMLInputElement;
-  let imageFile: HTMLInputElement;
+  let logoFile = $state<HTMLInputElement | null>(null);
+  let imageFile = $state<HTMLInputElement | null>(null);
   
   // Current saved URLs (what's displayed in the main interface)
-  let currentLogoUrl: string = '';
-  let currentImageUrl: string = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
+  let currentLogoUrl = $state('');
+  let currentImageUrl = $state('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E');
   
   // Temporary preview URLs (what's shown in modal before saving)
-  let tempLogoPreviewUrl: string = '';
-  let tempImagePreviewUrl: string = '';
+  let tempLogoPreviewUrl = $state('');
+  let tempImagePreviewUrl = $state('');
   
   // Form data
-  let title: string = '';
-  let description: string = '';
+  let title = $state('');
+  let description = $state('');
   
+  // Validation states for buttons
+  let isLogoSaveDisabled = $state(true);
+  let isImageSaveDisabled = $state(true);
+  let isLogoDeleteDisabled = $state(true);
+  let isImageDeleteDisabled = $state(true);
+
+  // Update button states based on image URLs
+  $effect(() => {
+    // Validate Save buttons
+    isLogoSaveDisabled = !tempLogoPreviewUrl;
+    isImageSaveDisabled = !tempImagePreviewUrl || tempImagePreviewUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
+    
+    // Validate Delete buttons in main interface
+    isLogoDeleteDisabled = !currentLogoUrl;
+    isImageDeleteDisabled = currentImageUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
+  });
+
   function handleEditCompanyLogo(): void {
     tempLogoPreviewUrl = currentLogoUrl;
     showEditCompanyLogoModal = true;
@@ -52,7 +69,6 @@
     showEditImageModal = false;
     showSuccessModal = false;
     showDeleteModal = false;
-    // Reset temporary preview URLs when closing modal without saving
     tempLogoPreviewUrl = '';
     tempImagePreviewUrl = '';
   }
@@ -66,7 +82,6 @@
     deleteType = '';
   }
   
-  // Navigation function for settings button
   function handleSettingsClick(): void {
     goto('/admin/dashboard-setting');
   }
@@ -76,6 +91,20 @@
     const file = target.files?.[0];
     
     if (file) {
+      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('File size exceeds 5MB. Please select a smaller file.');
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
+        return;
+      }
+
       console.log(`${type} file selected:`, file.name);
       const reader = new FileReader();
       reader.onload = function(e: ProgressEvent<FileReader>) {
@@ -91,17 +120,25 @@
   }
   
   function saveLogo(): void {
+    if (!tempLogoPreviewUrl) return;
     currentLogoUrl = tempLogoPreviewUrl;
     showEditCompanyLogoModal = false;
     showSuccessModal = true;
     dispatch('logoUpdate', { url: tempLogoPreviewUrl });
+    setTimeout(() => {
+      showSuccessModal = false;
+    }, 3000);
   }
   
   function saveImage(): void {
+    if (!tempImagePreviewUrl || tempImagePreviewUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E') return;
     currentImageUrl = tempImagePreviewUrl;
     showEditImageModal = false;
     showSuccessModal = true;
     dispatch('imageUpdate', { url: tempImagePreviewUrl });
+    setTimeout(() => {
+      showSuccessModal = false;
+    }, 3000);
   }
   
   function confirmDelete(): void {
@@ -111,7 +148,6 @@
       currentImageUrl = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
     }
     closeDeleteModal();
-    showSuccessModal = true;
   }
   
   function handleModalClick(event: MouseEvent): void {
@@ -139,6 +175,9 @@
   function handleSaveChanges(): void {
     dispatch('save', { title, description });
     showSuccessModal = true;
+    setTimeout(() => {
+      showSuccessModal = false;
+    }, 3000);
   }
   
   function handleDragOver(event: DragEvent): void {
@@ -163,7 +202,22 @@
     
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
-      console.log('File dropped:', files[0].name);
+      const file = files[0];
+      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('File size exceeds 5MB. Please select a smaller file.');
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
+        return;
+      }
+
+      console.log('File dropped:', file.name);
       const reader = new FileReader();
       reader.onload = function(e: ProgressEvent<FileReader>) {
         const result = e.target?.result as string;
@@ -173,7 +227,7 @@
           tempImagePreviewUrl = result;
         }
       };
-      reader.readAsDataURL(files[0]);
+      reader.readAsDataURL(file);
     }
   }
 </script>
@@ -182,78 +236,99 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 </svelte:head>
 
-<div class="app">
-  <!-- Main Content -->
-  <div class="main-content">
-    <!-- Content Area -->
-    <div class="content-area">
-      <!-- Header Card -->
-      <div class="header-card">
-        <div class="header-info">
-          <div class="page-title">
-            Home Setting
-          </div>
-          <div class="page-subtitle">Design Home Page Screen</div>
+<div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
+  <div class="p-0 pb-4 flex flex-col gap-3">
+    <!-- Header Card -->
+    <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-white text-xl font-bold mb-0.5 leading-tight">Home Setting</h1>
+          <p class="text-white text-sm font-normal m-0">Design Home Page Screen</p>
         </div>
-        <div class="header-actions">
-          <button class="save-changes-btn" on:click={handleSaveChanges}>
-            <span class="material-symbols-outlined" style="font-size: 16px;">save</span>
-            <span class="btn-text">Save Changes</span>
+        <div class="flex items-center gap-2">
+          <button 
+            class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md" 
+            on:click={handleSaveChanges}
+            type="button"
+          >
+            <span class="material-symbols-outlined text-base">save</span>
+            Save Changes
           </button>
-          <button class="settings-icon-btn" type="button" on:click={handleSettingsClick}>
-            <span class="material-symbols-outlined settings-icon">settings</span>
+          <button 
+            class="bg-transparent border-none p-1.5 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center" 
+            type="button" 
+            on:click={handleSettingsClick}
+          >
+            <span class="material-symbols-outlined text-base text-white cursor-pointer">settings</span>
           </button>
         </div>
       </div>
+    </div>
 
-      <!-- Form Card -->
-      <div class="form-section">
-        <div class="form-group">
-          <label for="title-input">Title</label>
-          <input 
-            id="title-input"
-            type="text" 
-            placeholder="Add Title"
-            bind:value={title}
-          />
-        </div>
+    <!-- Form Card -->
+    <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
+      <h3 class="text-base font-semibold text-gray-800 mb-3">Home Settings</h3>
+      <div class="mb-3 last:mb-0">
+        <label for="title-input" class="block mb-1 font-semibold text-gray-700 text-xs">Title</label>
+        <input 
+          id="title-input"
+          type="text" 
+          placeholder="Add Title"
+          bind:value={title}
+          class="w-full py-2 px-2.5 border border-gray-300 rounded-md text-xs text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
+        />
+      </div>
 
-        <div class="form-group">
-          <label for="description-input">Description</label>
-          <textarea 
-            id="description-input"
-            placeholder="Add Description"
-            bind:value={description}
-          ></textarea>
-        </div>
+      <div class="mb-3 last:mb-0">
+        <label for="description-input" class="block mb-1 font-semibold text-gray-700 text-xs">Description</label>
+        <textarea 
+          id="description-input"
+          placeholder="Add Description"
+          bind:value={description}
+          rows="3"
+          class="w-full py-2 px-2.5 border border-gray-300 rounded-md text-xs text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 resize-y min-h-[60px] focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
+        ></textarea>
+      </div>
 
-        <div class="company-section">
-          <div class="logo-card">
-            <h3 class="card-title">Company Logo</h3>
-            <div class="logo-preview">
-              {#if currentLogoUrl}
-                <img src={currentLogoUrl} alt="Company Logo" class="logo-image">
-              {:else}
-                <div class="company-logo"></div>
-              {/if}
-              <div class="status-label">Current</div>
-            </div>
-            <div class="btn-group">
-              <button class="btn btn-edit" on:click={handleEditCompanyLogo}>Edit</button>
-              <button class="btn btn-delete" on:click={() => handleDeleteModal('logo')}>Delete</button>
-            </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div class="text-center w-full">
+          <h3 class="mb-3 text-gray-700 text-sm font-semibold">Company Logo</h3>
+          <div class="w-full max-w-40 h-28 border-2 border-dashed border-gray-300 rounded-xl mx-auto mb-3 flex items-center justify-center bg-gray-50 relative overflow-hidden transform-none">
+            {#if currentLogoUrl}
+              <img src={currentLogoUrl} alt="Company Logo" class="max-w-32 max-h-24 object-contain rounded-md shadow-sm transform-none" style="transform: none;">
+            {:else}
+              <div class="w-15 h-11 bg-white rounded-md flex items-center justify-center border-2 border-dashed border-gray-300 relative shadow-sm transform-none">
+                <div class="absolute w-3 h-3 bg-blue-700 rounded-full top-1 left-1/2 transform-none -translate-x-1/2"></div>
+                <div class="absolute w-7 h-1.5 bg-green-600 rounded-md bottom-2 left-1/2 transform-none -translate-x-1/2"></div>
+              </div>
+            {/if}
+            <div class="absolute top-1.5 right-1.5 bg-green-600 text-white px-1.5 py-0.5 rounded text-xs font-semibold">Current</div>
           </div>
+          <div class="flex gap-2 justify-center flex-wrap">
+            <button class="text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold transition-all min-w-14" style="background-color: #1E3A8A;" on:click={handleEditCompanyLogo}>Edit</button>
+            <button 
+              class="text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold transition-all min-w-14" 
+              style="background-color: #FF0000;" 
+              on:click={() => handleDeleteModal('logo')}
+              disabled={isLogoDeleteDisabled}
+            >Delete</button>
+          </div>
+        </div>
 
-          <div class="image-card">
-            <h3 class="card-title">Image</h3>
-            <div class="image-preview">
-              <img src={currentImageUrl} alt="Current Image">
-              <div class="status-label">Current</div>
-            </div>
-            <div class="btn-group">
-              <button class="btn btn-edit" on:click={handleEditImage}>Edit</button>
-              <button class="btn btn-delete" on:click={() => handleDeleteModal('image')}>Delete</button>
-            </div>
+        <div class="text-center w-full">
+          <h3 class="mb-3 text-gray-700 text-sm font-semibold">Image</h3>
+          <div class="w-full max-w-40 h-28 border-2 border-dashed border-gray-300 rounded-xl mx-auto mb-3 flex items-center justify-center bg-gray-50 relative overflow-hidden">
+            <img src={currentImageUrl} alt="Current Image" class="w-24 h-20 object-cover rounded-md shadow-sm">
+            <div class="absolute top-1.5 right-1.5 bg-green-600 text-white px-1.5 py-0.5 rounded text-xs font-semibold">Current</div>
+          </div>
+          <div class="flex gap-2 justify-center flex-wrap">
+            <button class="text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold transition-all min-w-14" style="background-color: #1E3A8A;" on:click={handleEditImage}>Edit</button>
+            <button 
+              class="text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold transition-all min-w-14" 
+              style="background-color: #FF0000;" 
+              on:click={() => handleDeleteModal('image')}
+              disabled={isImageDeleteDisabled}
+            >Delete</button>
           </div>
         </div>
       </div>
@@ -265,43 +340,53 @@
 {#if showEditCompanyLogoModal}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="modal" on:click={handleModalClick}>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Edit Company Logo</h3>
-        <button class="close-btn" on:click={closeModal}>&times;</button>
+  <div class="fixed top-0 left-0 w-full h-full bg-black/50 flex items-center justify-center z-[1000] p-5 box-border" on:click={handleModalClick}>
+    <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click={handleModalContentClick}>
+      <div class="p-4 px-5 border-b border-gray-200 flex justify-between items-center">
+        <h3 class="text-base font-semibold text-gray-800 m-0">Edit Company Logo</h3>
+        <button class="bg-transparent border-none cursor-pointer p-1 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700" on:click={closeModal}>
+          <span class="material-symbols-outlined text-base">close</span>
+        </button>
       </div>
-      <div class="modal-body">
+      <div class="p-4 px-5">
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
-          class="upload-area" 
+          class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer transition-all duration-200 relative hover:border-[#2448B1] hover:bg-slate-50" 
           on:click={() => logoFile?.click()}
           on:dragover={handleDragOver}
           on:dragleave={handleDragLeave}
           on:drop={(e) => handleDrop(e, 'logo')}
         >
           {#if tempLogoPreviewUrl}
-            <div class="preview-image-container">
-              <img src={tempLogoPreviewUrl} alt="Preview" class="modal-preview-image">
-              <div class="change-image-text">Klik untuk mengganti gambar</div>
+            <div class="flex flex-col items-center">
+              <img src={tempLogoPreviewUrl} alt="Preview" class="w-32 h-24 object-contain rounded-md shadow-sm mb-2" />
+              <p class="text-[#2448B1] text-xs font-medium">Click to change image</p>
             </div>
           {:else}
-            <div class="upload-icon">📁</div>
-            <div class="upload-text">Pilih file gambar baru. Atau seret dan letakkan gambar ke sini</div>
-            <div class="upload-subtext">Format yang didukung: JPG, PNG, SVG</div>
+            <div class="text-gray-500 text-xs">
+              <span>Click to upload image</span>
+            </div>
           {/if}
           <input 
             type="file" 
             bind:this={logoFile}
-            accept=".jpg,.jpeg,.png,.svg" 
+            accept="image/jpeg,image/png,image/svg+xml" 
             style="display: none;" 
             on:change={(e) => handleFileSelect(e, 'logo')}
           />
         </div>
-        <div class="btn-group modal-btn-group">
-          <button class="btn btn-save" on:click={saveLogo}>Save</button>
-          <button class="btn btn-cancel" on:click={closeModal}>Cancel</button>
+        <p class="text-gray-500 text-xs mt-2 text-center">File must be JPG, PNG, or SVG. Maximum size: 5MB.</p>
+        <div class="flex justify-end gap-2 mt-4">
+          <button 
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white" 
+            on:click={closeModal}
+          >Cancel</button>
+          <button 
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white" 
+            on:click={saveLogo} 
+            disabled={isLogoSaveDisabled}
+          >Save</button>
         </div>
       </div>
     </div>
@@ -312,796 +397,113 @@
 {#if showEditImageModal}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="modal" on:click={handleModalClick}>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Edit Image</h3>
-        <button class="close-btn" on:click={closeModal}>&times;</button>
+  <div class="fixed top-0 left-0 w-full h-full bg-black/50 flex items-center justify-center z-[1000] p-5 box-border" on:click={handleModalClick}>
+    <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click={handleModalContentClick}>
+      <div class="p-4 px-5 border-b border-gray-200 flex justify-between items-center">
+        <h3 class="text-base font-semibold text-gray-800 m-0">Edit Image</h3>
+        <button class="bg-transparent border-none cursor-pointer p-1 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700" on:click={closeModal}>
+          <span class="material-symbols-outlined text-base">close</span>
+        </button>
       </div>
-      <div class="modal-body">
+      <div class="p-4 px-5">
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
-          class="upload-area" 
+          class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer transition-all duration-200 relative hover:border-[#2448B1] hover:bg-slate-50" 
           on:click={() => imageFile?.click()}
           on:dragover={handleDragOver}
           on:dragleave={handleDragLeave}
           on:drop={(e) => handleDrop(e, 'image')}
         >
           {#if tempImagePreviewUrl && tempImagePreviewUrl !== 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E'}
-            <div class="preview-image-container">
-              <img src={tempImagePreviewUrl} alt="Preview" class="modal-preview-image">
-              <div class="change-image-text">Klik untuk mengganti gambar</div>
+            <div class="flex flex-col items-center">
+              <img src={tempImagePreviewUrl} alt="Preview" class="w-32 h-24 object-contain rounded-md shadow-sm mb-2" />
+              <p class="text-[#2448B1] text-xs font-medium">Click to change image</p>
             </div>
           {:else}
-            <div class="upload-icon">📁</div>
-            <div class="upload-text">Pilih file gambar baru. Atau seret dan letakkan gambar ke sini</div>
-            <div class="upload-subtext">Format yang didukung: JPG, PNG, SVG</div>
+            <div class="text-gray-500 text-xs">
+              <span>Click to upload image</span>
+            </div>
           {/if}
           <input 
             type="file" 
             bind:this={imageFile}
-            accept=".jpg,.jpeg,.png,.svg" 
+            accept="image/jpeg,image/png,image/svg+xml" 
             style="display: none;" 
             on:change={(e) => handleFileSelect(e, 'image')}
           />
         </div>
-        <div class="btn-group modal-btn-group">
-          <button class="btn btn-save" on:click={saveImage}>Save</button>
-          <button class="btn btn-cancel" on:click={closeModal}>Cancel</button>
+        <p class="text-gray-500 text-xs mt-2 text-center">File must be JPG, PNG, or SVG. Maximum size: 5MB.</p>
+        <div class="flex justify-end gap-2 mt-4">
+          <button 
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white" 
+            on:click={closeModal}
+          >Cancel</button>
+          <button 
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white" 
+            on:click={saveImage} 
+            disabled={isImageSaveDisabled}
+          >Save</button>
         </div>
       </div>
     </div>
   </div>
 {/if}
 
-<!-- Success Modal -->
+<!-- Success Notification Modal -->
 {#if showSuccessModal}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="success-modal-overlay" on:click={handleSuccessModalClick}>
-    <div class="success-modal">
-      <div class="success-modal-body">
-        <div class="success-icon">
-          <span class="material-symbols-outlined">check</span>
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick}>
+    <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
+      <div class="p-8 text-center relative">
+        <div class="w-16 h-16 bg-green-500 rounded-full mx-auto mb-5 flex items-center justify-center">
+          <span class="material-symbols-outlined text-white text-3xl font-semibold">check</span>
         </div>
-        <h3 class="success-title">Changes Saved</h3>
-        <p class="success-message">Your changes have been saved successfully.</p>
-        <button on:click={closeSuccessModal} class="success-close" type="button">
-          <span class="material-symbols-outlined">close</span>
+        <h3 class="text-xl font-semibold text-gray-800 mb-2">Changes Saved</h3>
+        <p class="text-sm text-gray-600">Your changes have been saved successfully.</p>
+        <button 
+          on:click={closeSuccessModal} 
+          class="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200"
+          type="button"
+        >
+          <span class="material-symbols-outlined text-lg">close</span>
         </button>
       </div>
     </div>
   </div>
 {/if}
 
-<!-- Delete Modal -->
+<!-- Delete Confirmation Modal -->
 {#if showDeleteModal}
-<!-- svelte-ignore a11y-click-events-have-key-events -->
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="delete-modal-overlay show" on:click={handleDeleteModalClick}>
-  <div class="delete-modal-content" on:click={handleModalContentClick}>
-    <!-- Close button in top right -->
-    <button class="delete-modal-close" on:click={closeDeleteModal}>
-      <span class="material-symbols-outlined">close</span>
-    </button>
-    
-    <!-- Red circular X icon -->
-    <div class="delete-icon-circle">
-      <span class="material-symbols-outlined delete-x-icon">close</span>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="fixed inset-0 w-full h-full bg-black/60 flex items-center justify-center z-[1001] p-4" on:click={handleDeleteModalClick} role="button" tabindex="0" on:keydown={() => {}}>
+    <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center">
+      <button class="absolute top-3 right-3 text-gray-400 bg-none border-none cursor-pointer p-1.5 rounded hover:bg-gray-100 hover:text-gray-600" on:click={closeDeleteModal}>
+        <span class="material-symbols-outlined text-[16px]">close</span>
+      </button>
+      <div class="w-[60px] h-[60px] bg-[#ff0000] rounded-full mx-auto mb-4 flex items-center justify-center">
+        <span class="material-symbols-outlined text-white text-[28px] font-bold">close</span>
+      </div>
+      <h3 class="text-[18px] font-bold text-[#1e293b] m-0 mb-2">Delete this {deleteType}?</h3>
+      <p class="text-[13px] text-[#6b7280] m-0">This action cannot be undone.</p>
+      <button 
+        class="bg-[#ff0000] text-white px-6 py-2 rounded-md text-[12px] font-bold mt-4 hover:bg-[#dc2626] cursor-pointer" 
+        on:click={confirmDelete}
+      >Delete</button>
     </div>
-    
-    <!-- Title -->
-    <h2 class="delete-modal-title">Delete this {deleteType}?</h2>
-    
-    <!-- Subtitle -->
-    <p class="delete-modal-subtitle">This action cannot be undone.</p>
-    
-    <!-- Delete button -->
-    <button class="delete-confirm-btn" on:click={confirmDelete}>
-      Delete
-    </button>
   </div>
-</div>
 {/if}
 
 <style>
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :global(body) {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #f5f7fa;
-    overflow-x: hidden;
-  }
-
-  .app {
-    min-height: 100vh;
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: hidden;
-  }
-
-  /* Main Content */
-  .main-content {
-    flex: 1;
-    background-color: #ECF6F9;
-    width: 100%;
-    overflow-x: hidden;
-  }
-
-  /* Content Area */
-  .content-area {
-    padding: 12px;
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  /* Header Card */
-  .header-card {
-    background: #2448B1;
-    padding: 16px 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e5e7eb;
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .header-info {
-    flex: 1;
-    min-width: 200px;
-  }
-
-  .header-info .page-title {
-    background: none;
-    color: white;
-    font-size: clamp(18px, 3.5vw, 24px);
-    font-weight: 700;
-    margin-bottom: 4px;
-    padding: 0;
-    border-radius: 0;
-    box-shadow: none;
-    display: block;
-    position: static;
-  }
-
-  .header-info .page-subtitle {
-    color: white;
-    font-size: clamp(12px, 1.8vw, 14px);
-    font-weight: 400;
-    margin: 0;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  .settings-icon-btn {
-    background: none;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-radius: 8px;
-  }
-
-  .settings-icon-btn:hover {
-    background: rgba(107, 114, 128, 0.1);
-  }
-
-  .settings-icon {
-    font-size: 20px;
-    color: white;
-    transition: all 0.2s ease;
-  }
-
-  .settings-icon-btn:hover .settings-icon {
-    transform: rotate(90deg);
-  }
-
-  .save-changes-btn {
-    background: #16A34A;
-    color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background-color 0.2s;
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
-    white-space: nowrap;
-  }
-
-  .save-changes-btn:hover {
-    background: #15803d;
-  }
-
-  .form-section {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e5e7eb;
-    width: 100%;
-  }
-
-  .form-group {
-    margin-bottom: 18px;
-  }
-
-  .form-group label {
-    display: block;
-    margin-bottom: 7px;
-    font-weight: 600;
-    color: #374151;
-    font-size: 13px;
-  }
-
-  .form-group input, .form-group textarea {
-    width: 100%;
-    padding: 11px 13px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 13px;
-    color: #6b7280;
-    transition: border-color 0.2s;
-    box-sizing: border-box;
-  }
-
-  .form-group input:focus, .form-group textarea:focus {
-    outline: none;
-    border-color: #2448B1;
-    box-shadow: 0 0 0 3px rgba(36, 72, 177, 0.1);
-  }
-
-  .form-group textarea {
-    height: 75px;
-    resize: vertical;
-    font-family: inherit;
-  }
-
-  /* Company Logo Section */
-  .company-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
-    margin-top: 24px;
-  }
-
-  .logo-card, .image-card {
-    text-align: center;
-    width: 100%;
-  }
-
-  .card-title {
-    margin-bottom: 13px;
-    color: #374151;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .logo-preview, .image-preview {
-    width: 100%;
-    max-width: 165px;
-    height: 115px;
-    border: 2px dashed #d1d5db;
-    border-radius: 12px;
-    margin: 0 auto 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f9fafb;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .logo-preview .company-logo {
-    width: 60px;
-    height: 45px;
-    background: white;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px dashed #d1d5db;
-    position: relative;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .company-logo::before {
-    content: '';
-    width: 12px;
-    height: 12px;
-    background: #2448B1;
-    border-radius: 50%;
-    position: absolute;
-    top: 4px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .company-logo::after {
-    content: '';
-    position: absolute;
-    width: 30px;
-    height: 6px;
-    background: #16A34A;
-    border-radius: 6px;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .logo-image {
-    max-width: 130px;
-    max-height: 100px;
-    object-fit: contain;
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .image-preview img {
-    width: 100px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .status-label {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: #16A34A;
-    color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 9px;
-    font-weight: 600;
-  }
-
-  .btn-group {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .modal-btn-group {
-    justify-content: flex-end;
-    gap: 10px;
-  }
-
-  .btn {
-    padding: 7px 14px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    transition: all 0.2s;
-    min-width: 55px;
-  }
-
-  .btn-edit {
-    background: #1E3A8A;
-    color: white;
-  }
-
-  .btn-edit:hover {
-    background: #1e40af;
-  }
-
-  .btn-delete {
-    background: #FF0000;
-    color: white;
-  }
-
-  .btn-delete:hover {
-    background: #dc2626;
-  }
-
-  .btn-save {
-    background: #1E3A8A;
-    color: white;
-  }
-
-  .btn-save:hover {
-    background: #1E3A8A;
-  }
-
-  .btn-cancel {
-    background: #5A5A5A;
-    color: white;
-  }
-
-  .btn-cancel:hover {
-    background: #5A5A5A;
-  }
-
-  /* Modal Styles */
-  .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-
-  .modal-content {
-    background: white;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 480px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  }
-
-  .modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .modal-header h3 {
-    margin: 0;
-    color: #1f2937;
-    font-size: 18px;
-    font-weight: 700;
-  }
-
-  .close-btn {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: #6b7280;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-  }
-
-  .close-btn:hover {
-    background: #f3f4f6;
-    color: #374151;
-  }
-
-  .modal-body {
-    padding: 24px;
-  }
-
-  .upload-area {
-    border: 2px dashed #d1d5db;
-    border-radius: 8px;
-    padding: 32px 16px;
-    margin-bottom: 24px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-    background: #f9fafb;
-  }
-
-  .upload-area:hover {
-    border-color: #2448B1;
-    background: #eff6ff;
-  }
-
-  .upload-area .upload-icon {
-    width: 48px;
-    height: 48px;
-    background: #e5e7eb;
-    border-radius: 8px;
-    margin: 0 auto 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: #6b7280;
-  }
-
-  .upload-text {
-    color: #374151;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-
-  .upload-subtext {
-    color: #6b7280;
-    font-size: 12px;
-  }
-
-  /* Modal Preview Styles */
-  .preview-image-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    position: relative;
-  }
-
-  .modal-preview-image {
-    max-width: 200px;
-    max-height: 150px;
-    object-fit: contain;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    margin-bottom: 12px;
-  }
-
-  .change-image-text {
-    color: #2448B1;
-    font-size: 12px;
-    font-weight: 600;
-    opacity: 0.8;
-  }
-
-  /* Success Modal Styles */
-  .success-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1001;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-
-  .success-modal {
-    background: white;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 360px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    position: relative;
-  }
-
-  .success-modal-body {
-    padding: 32px 24px;
-    text-align: center;
-    position: relative;
-  }
-
-  .success-icon {
-    width: 60px;
-    height: 60px;
-    background: #10b981;
-    border-radius: 50%;
-    margin: 0 auto 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .success-icon .material-symbols-outlined {
-    color: white;
-    font-size: 32px;
-    font-weight: 600;
-  }
-
-  .success-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 6px 0;
-  }
-
-  .success-message {
-    font-size: 14px;
-    color: #6b7280;
-    margin: 0;
-  }
-
-  .success-close {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 4px;
-    color: #9ca3af;
-    transition: all 0.2s;
-  }
-
-  .success-close:hover {
-    background: #f3f4f6;
-    color: #6b7280;
-  }
-
-  .success-close .material-symbols-outlined {
-    font-size: 16px;
-  }
-
-  /* Delete Modal Styles */
-  .delete-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(4px);
-    padding: 20px;
-    box-sizing: border-box;
-  }
-
-  .delete-modal-overlay.show {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .delete-modal-content {
-    background: white;
-    border-radius: 20px;
-    width: 100%;
-    max-width: 380px;
-    padding: 40px 32px 32px;
-    text-align: center;
-    position: relative;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    transform: scale(0.9) translateY(-20px);
-    transition: all 0.3s ease;
-  }
-
-  .delete-modal-overlay.show .delete-modal-content {
-    transform: scale(1) translateY(0);
-  }
-
-  .delete-modal-close {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-  }
-
-  .delete-modal-close:hover {
-    background: #f3f4f6;
-    color: #6b7280;
-  }
-
-  .delete-modal-close .material-symbols-outlined {
-    font-size: 18px;
-  }
-
-  .delete-icon-circle {
-    width: 80px;
-    height: 80px;
-    background: #ff3333;
-    border-radius: 50%;
-    margin: 0 auto 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px rgba(255, 51, 51, 0.3);
-    animation: deleteIconBounce 0.6s ease-out;
-  }
-
-  @keyframes deleteIconBounce {
-    0% {
-      transform: scale(0);
-      opacity: 0;
-    }
-    50% {
-      transform: scale(1.1);
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-
-  .delete-x-icon {
-    color: white;
-    font-size: 40px;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .delete-modal-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0 0 8px 0;
-    letter-spacing: -0.3px;
-  }
-
-  .delete-modal-subtitle {
-    font-size: 14px;
-    color: #9ca3af;
-    margin: 0 0 24px 0;
-    font-weight: 400;
-  }
-
-  .delete-confirm-btn {
-    background: #ff3333;
-    color: white;
-    border: none;
-    padding: 12px 32px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 16px rgba(255, 51, 51, 0.3);
-    text-transform: none;
-    letter-spacing: 0.3px;
-    min-width: 100px;
-  }
-
-  .delete-confirm-btn:hover {
-    background: #e60000;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(255, 51, 51, 0.4);
-  }
-
-  .delete-confirm-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 16px rgba(255, 51, 51, 0.3);
-  }
+  @reference "tailwindcss";
 
   :global(.material-symbols-outlined) {
     font-family: 'Material Symbols Outlined';
     font-weight: normal;
     font-style: normal;
-    font-size: 20px;
+    font-size: 16px;
     display: inline-block;
     line-height: 1;
     text-transform: none;
@@ -1113,320 +515,8 @@
     background: transparent !important;
   }
 
-  /* Responsive Design */
-  @media (max-width: 1024px) {
-    .content-area {
-      padding: 16px;
-    }
-
-    .header-card {
-      padding: 16px;
-    }
-
-    .form-section {
-      padding: 24px;
-    }
-
-    .company-section {
-      gap: 20px;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .app {
-      overflow-x: hidden;
-    }
-
-    .content-area {
-      padding: 12px;
-    }
-
-    .header-card {
-      flex-direction: column;
-      gap: 12px;
-      text-align: center;
-      padding: 16px;
-    }
-
-    .header-info {
-      width: 100%;
-    }
-
-    .header-actions {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .save-changes-btn .btn-text {
-      display: none;
-    }
-
-    .form-section {
-      padding: 20px;
-    }
-
-    .company-section {
-      grid-template-columns: 1fr;
-      gap: 24px;
-    }
-
-    .logo-preview, .image-preview {
-      max-width: 180px;
-      height: 120px;
-    }
-
-    .card-title {
-      font-size: 15px;
-    }
-
-    .btn {
-      font-size: 11px;
-      padding: 6px 12px;
-    }
-
-    /* Modal Responsive */
-    .modal {
-      padding: 16px;
-    }
-
-    .modal-content {
-      max-width: none;
-    }
-
-    .modal-header {
-      padding: 16px 20px;
-    }
-
-    .modal-body {
-      padding: 20px;
-    }
-
-    .upload-area {
-      padding: 24px 12px;
-    }
-
-    .upload-area .upload-icon {
-      width: 40px;
-      height: 40px;
-      font-size: 20px;
-    }
-
-    .upload-text {
-      font-size: 13px;
-    }
-
-    .upload-subtext {
-      font-size: 11px;
-    }
-
-    /* Success Modal Mobile */
-    .success-modal-body {
-      padding: 24px 20px;
-    }
-
-    .success-icon {
-      width: 50px;
-      height: 50px;
-    }
-
-    .success-icon .material-symbols-outlined {
-      font-size: 28px;
-    }
-
-    .success-title {
-      font-size: 18px;
-    }
-
-    .success-message {
-      font-size: 13px;
-    }
-
-    /* Delete Modal Mobile */
-    .delete-modal-content {
-      padding: 32px 24px 24px;
-    }
-
-    .delete-icon-circle {
-      width: 70px;
-      height: 70px;
-      margin-bottom: 20px;
-    }
-
-    .delete-x-icon {
-      font-size: 32px;
-    }
-
-    .delete-modal-title {
-      font-size: 18px;
-    }
-
-    .delete-modal-subtitle {
-      font-size: 13px;
-    }
-
-    .delete-confirm-btn {
-      padding: 10px 24px;
-      font-size: 13px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .content-area {
-      padding: 8px;
-    }
-
-    .header-card {
-      border-radius: 8px;
-      padding: 12px;
-    }
-
-    .form-section {
-      border-radius: 8px;
-      padding: 16px;
-    }
-
-    .header-info .page-title {
-      font-size: 22px;
-    }
-
-    .header-info .page-subtitle {
-      font-size: 13px;
-    }
-
-    .save-changes-btn {
-      padding: 8px 12px;
-      font-size: 12px;
-    }
-
-    .form-group input, .form-group textarea {
-      padding: 10px 12px;
-      font-size: 13px;
-    }
-
-    .form-group textarea {
-      height: 70px;
-    }
-
-    .logo-preview, .image-preview {
-      max-width: 160px;
-      height: 100px;
-    }
-
-    .btn-group {
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .btn {
-      width: 100px;
-      font-size: 10px;
-      padding: 6px 10px;
-    }
-
-    .modal-content {
-      border-radius: 8px;
-    }
-
-    .modal-header h3 {
-      font-size: 16px;
-    }
-
-    /* Delete Modal Extra Small */
-    .delete-modal-content {
-      border-radius: 16px;
-      padding: 24px 16px 20px;
-    }
-
-    .delete-icon-circle {
-      width: 60px;
-      height: 60px;
-      margin-bottom: 16px;
-    }
-
-    .delete-x-icon {
-      font-size: 28px;
-    }
-
-    .delete-modal-title {
-      font-size: 16px;
-      margin-bottom: 6px;
-    }
-
-    .delete-modal-subtitle {
-      font-size: 12px;
-      margin-bottom: 20px;
-    }
-
-    .delete-confirm-btn {
-      padding: 8px 20px;
-      font-size: 12px;
-    }
-  }
-
-  @media (max-width: 360px) {
-    .header-actions {
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .save-changes-btn,
-    .settings-icon-btn {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .company-section {
-      gap: 16px;
-    }
-
-    .logo-preview, .image-preview {
-      max-width: 140px;
-      height: 90px;
-    }
-
-    .status-label {
-      font-size: 8px;
-      padding: 1px 6px;
-    }
-  }
-
-  /* Enhanced Focus States */
-  .save-changes-btn:focus,
-  .btn:focus,
-  .delete-confirm-btn:focus,
-  .close-btn:focus,
-  .success-close:focus,
-  .delete-modal-close:focus {
-    outline: 2px solid rgba(59, 130, 246, 0.5);
-    outline-offset: 2px;
-  }
-
-  /* Improved Touch Targets for Mobile */
-  @media (max-width: 768px) {
-    .btn,
-    .save-changes-btn,
-    .settings-icon-btn,
-    .close-btn,
-    .success-close,
-    .delete-modal-close {
-      min-height: 44px;
-      min-width: 44px;
-    }
-
-    .delete-confirm-btn {
-      min-height: 44px;
-      min-width: 120px;
-    }
-  }
-
-  /* Prevent horizontal scroll */
-  * {
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Smooth Transitions */
-  * {
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  button:disabled {
+    opacity: 0.8;
+    cursor: not-allowed;
   }
 </style>

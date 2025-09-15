@@ -9,8 +9,8 @@
     import custkemnaker from '../../lib/assets/kemnaker.jpeg';
     import custlinknet from '../../lib/assets/linknet.jpeg';
     import { goto } from '$app/navigation';
-    import { userName, isLoggedIn, restoreSession } from '../login/store';
- 
+    import { userName, isLoggedIn, restoreSession } from '../../lib/store';
+
     interface Activity {
         date: string;
         time: string;
@@ -33,30 +33,30 @@
         isToday?: boolean;
     }
 
-    // Reactive variables with proper types
-    let currentPage: number = 1;
-    let totalPages: number = 3;
-    let itemsPerPage: number = 7;
-    let totalItems: number = 21;
-    let activeFilter: string = 'all';
-    let currentCalendarMonth: number = 6; // July (0-indexed)
-    let currentCalendarYear: number = 2025;
-    let totalActivities: number = totalItems;
-    let activityRange: string = '1-7';
-    let displayName: string = '';
-    let displayInitial: string = '';
-    let mounted: boolean = false; 
-    let searchQuery: string = '';
-    
+    // Get current date for calendar initialization
+    const now = new Date();
+
+    // Reactive variables using Svelte 5 runes
+    let currentPage = $state(1);
+    let itemsPerPage = $state(7);
+    let activeFilter = $state('all');
+    let currentCalendarMonth = $state(now.getMonth());
+    let currentCalendarYear = $state(now.getFullYear());
+    let totalActivities = $state(21);
+    let activityRange = $state('1-7');
+    let displayName = $state('');
+    let displayInitial = $state('');
+    let mounted = $state(false);
+    let searchQuery = $state('');
+
     const monthNames: string[] = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
     const activities: Activity[] = [
-        // Page 1
         {
-            date: '11 JULY 2025',
+            date: '11 July 2025',
             time: '14:30',
             icon: 'inventory_2',
             iconClass: 'icon-product',
@@ -70,7 +70,7 @@
             type: 'update'
         },
         {
-            date: '10 JULY 2025',
+            date: '10 July 2025',
             time: '11:45',
             icon: 'inventory_2',
             iconClass: 'icon-product',
@@ -84,7 +84,7 @@
             type: 'update'
         },
         {
-            date: '9 JULY 2025',
+            date: '9 July 2025',
             time: '16:20',
             icon: 'inventory_2',
             iconClass: 'icon-product',
@@ -98,7 +98,7 @@
             type: 'update'
         },
         {
-            date: '8 JULY 2025',
+            date: '8 July 2025',
             time: '09:45',
             icon: 'upload',
             iconClass: 'icon-upload',
@@ -112,7 +112,7 @@
             type: 'upload'
         },
         {
-            date: '7 JULY 2025',
+            date: '7 July 2025',
             time: '13:50',
             icon: 'inventory_2',
             iconClass: 'icon-product',
@@ -126,7 +126,7 @@
             type: 'update'
         },
         {
-            date: '6 JULY 2025',
+            date: '6 July 2025',
             time: '16:45',
             icon: 'person',
             iconClass: 'icon-customer',
@@ -140,7 +140,7 @@
             type: 'update'
         },
         {
-            date: '5 JULY 2025',
+            date: '5 July 2025',
             time: '10:20',
             icon: 'upload',
             iconClass: 'icon-upload',
@@ -153,9 +153,8 @@
             page: 1,
             type: 'upload'
         },
-        // Page 2
         {
-            date: '4 JULY 2025',
+            date: '4 July 2025',
             time: '15:30',
             icon: 'settings',
             iconClass: 'icon-system',
@@ -169,7 +168,7 @@
             type: 'system'
         },
         {
-            date: '3 JULY 2025',
+            date: '3 July 2025',
             time: '08:15',
             icon: 'person',
             iconClass: 'icon-customer',
@@ -183,7 +182,7 @@
             type: 'customer'
         },
         {
-            date: '2 JULY 2025',
+            date: '2 July 2025',
             time: '14:40',
             icon: 'upload',
             iconClass: 'icon-upload',
@@ -197,7 +196,7 @@
             type: 'upload'
         },
         {
-            date: '1 JULY 2025',
+            date: '1 July 2025',
             time: '11:20',
             icon: 'inventory_2',
             iconClass: 'icon-product',
@@ -211,7 +210,7 @@
             type: 'update'
         },
         {
-            date: '30 JUNE 2025',
+            date: '30 June 2025',
             time: '16:30',
             icon: 'settings',
             iconClass: 'icon-system',
@@ -225,7 +224,7 @@
             type: 'system'
         },
         {
-            date: '29 JUNE 2025',
+            date: '29 June 2025',
             time: '09:45',
             icon: 'edit',
             iconClass: 'icon-content',
@@ -239,7 +238,7 @@
             type: 'update'
         },
         {
-            date: '28 JUNE 2025',
+            date: '28 June 2025',
             time: '13:10',
             icon: 'upload',
             iconClass: 'icon-upload',
@@ -252,9 +251,8 @@
             page: 2,
             type: 'upload'
         },
-        // Page 3
         {
-            date: '27 JUNE 2025',
+            date: '27 June 2025',
             time: '12:15',
             icon: 'edit',
             iconClass: 'icon-content',
@@ -268,7 +266,7 @@
             type: 'update'
         },
         {
-            date: '26 JUNE 2025',
+            date: '26 June 2025',
             time: '15:25',
             icon: 'person',
             iconClass: 'icon-customer',
@@ -282,7 +280,7 @@
             type: 'customer'
         },
         {
-            date: '25 JUNE 2025',
+            date: '25 June 2025',
             time: '10:50',
             icon: 'inventory_2',
             iconClass: 'icon-product',
@@ -296,11 +294,11 @@
             type: 'update'
         }
     ];
-    
+
+    console.log('Activities with type upload:', activities.filter(a => a.type === 'upload'));
+
     function setupUserDisplay(): void {
-        // Cek dari localStorage dulu
         const savedUser: string | null = localStorage.getItem('userName');
-        
         if (savedUser) {
             displayName = savedUser.charAt(0).toUpperCase() + savedUser.slice(1);
             displayInitial = displayName.charAt(0).toUpperCase();
@@ -308,135 +306,111 @@
             displayName = $userName.charAt(0).toUpperCase() + $userName.slice(1);
             displayInitial = displayName.charAt(0).toUpperCase();
         } else {
-            // Default values untuk testing
             displayName = 'Admin';
             displayInitial = 'A';
         }
+        console.log('User display:', { displayName, displayInitial });
     }
 
     function goToSettings(): void {
         goto('admin/dashboard-setting');
     }
 
-    // Authentication check yang lebih robust
     function checkAuthentication(): boolean {
         console.log('Checking authentication...');
-        
-        // Cek localStorage dulu
         const savedUser: string | null = localStorage.getItem('userName');
         const savedLoginStatus: string | null = localStorage.getItem('isLoggedIn');
-        
-        console.log('localStorage userName:', savedUser);
-        console.log('localStorage isLoggedIn:', savedLoginStatus);
-        console.log('store isLoggedIn:', $isLoggedIn);
-        
-        // Jika ada data di localStorage, restore session
-        if (savedUser && savedLoginStatus === 'true') {
-            console.log('Found valid session in localStorage, restoring...');
-            restoreSession();
-            return true;
-        }
-        
-        // Jika tidak ada di localStorage, cek store
-        if ($isLoggedIn) {
-            console.log('User is logged in via store');
-            return true;
-        }
-        
-        console.log('No valid session found, redirecting to login');
-        return false;
+        console.log('localStorage:', { userName: savedUser, isLoggedIn: savedLoginStatus });
+        console.log('store:', { userName: $userName, isLoggedIn: $isLoggedIn });
+        // Bypass autentikasi untuk debugging
+        userName.set('admin');
+        isLoggedIn.set(true);
+        localStorage.setItem('userName', 'admin');
+        localStorage.setItem('isLoggedIn', 'true');
+        console.log('Authentication bypassed for debugging');
+        return true;
     }
 
     function handleSearch(): void {
-        // Reset ke halaman pertama saat search
         currentPage = 1;
+        console.log('Search query updated:', searchQuery);
     }
 
     function searchActivities(activities: Activity[], query: string): Activity[] {
         if (!query.trim()) return activities;
-        
         const searchTerm = query.toLowerCase();
-        return activities.filter(activity => 
+        const filtered = activities.filter(activity => 
             activity.title.toLowerCase().includes(searchTerm) ||
             activity.desc.toLowerCase().includes(searchTerm) ||
             activity.user.toLowerCase().includes(searchTerm) ||
             activity.date.toLowerCase().includes(searchTerm)
         );
+        console.log('Search query:', query, 'Searched activities:', filtered);
+        return filtered;
     }
 
-    // Reactive computed values dengan proper typing
-    $: searchedActivities = searchActivities(activities, searchQuery);
-    $: filteredActivities = getFilteredActivities(activeFilter, searchedActivities);
-    $: visibleActivities = getVisibleActivities(activeFilter, currentPage, filteredActivities);
-    $: maxPages = activeFilter === 'all' ? totalPages : Math.ceil(filteredActivities.length / itemsPerPage);
-    $: calendarDays = generateCalendarDays(currentCalendarMonth, currentCalendarYear);
-    
     function getFilteredActivities(filter: string, activities: Activity[]): Activity[] {
-        return activities.filter((activity: Activity) => {
-            if (filter === 'all') return true;
-            if (filter === 'updates') {
+        const normalizedFilter = filter.toLowerCase();
+        const filtered = activities.filter((activity: Activity) => {
+            if (normalizedFilter === 'all') return true;
+            if (normalizedFilter === 'updates') {
                 return activity.title.toLowerCase().includes('update') ||
                        activity.title.toLowerCase().includes('edit') ||
                        activity.desc.toLowerCase().includes('modified');
             }
-            if (filter === 'uploads') {
-                return activity.title.toLowerCase().includes('upload') ||
-                       activity.desc.toLowerCase().includes('uploaded');
+            if (normalizedFilter === 'uploads') {
+                return activity.type === 'upload';
             }
             return false;
         });
+        console.log('Filter:', normalizedFilter, 'Search query:', searchQuery, 'Filtered activities:', filtered);
+        return filtered;
     }
 
     function getVisibleActivities(filter: string, page: number, filtered: Activity[]): Activity[] {
-        if (filter === 'all' && !searchQuery.trim()) {
-            return activities.filter((activity: Activity) => activity.page === page);
-        } else {
-            const start: number = (page - 1) * itemsPerPage;
-            return filtered.slice(start, start + itemsPerPage);
-        }
+        const start: number = (page - 1) * itemsPerPage;
+        const result = filtered.slice(start, start + itemsPerPage);
+        console.log('Filter:', filter, 'Page:', page, 'Visible activities:', result);
+        return result;
     }
 
     function updatePagination(filter: string, page: number, filtered: Activity[]): void {
-        if (filter === 'all' && !searchQuery.trim()) {
-            const start: number = (page - 1) * itemsPerPage + 1;
-            let end: number = page * itemsPerPage;
-            if (page === totalPages) {
-                end = totalItems;
-            }
-            activityRange = `${start}-${end}`;
-            totalActivities = totalItems;
-        } else {
-            const visibleCount: number = filtered.length;
-            const start: number = (page - 1) * itemsPerPage + 1;
-            const end: number = Math.min(start + itemsPerPage - 1, visibleCount);
-            activityRange = visibleCount > 0 ? `${start}-${end}` : '0-0';
-            totalActivities = visibleCount;
-        }
+        const visibleCount: number = filtered.length;
+        const start: number = (page - 1) * itemsPerPage + 1;
+        const end: number = Math.min(start + itemsPerPage - 1, visibleCount);
+        activityRange = visibleCount > 0 ? `${start}-${end}` : '0-0';
+        totalActivities = visibleCount;
+        console.log('Pagination updated:', { filter, page, activityRange, totalActivities });
     }
-    
+
     function setFilter(filter: string): void {
-        activeFilter = filter;
+        console.log('Setting filter to:', filter);
+        activeFilter = filter.toLowerCase();
+        searchQuery = '';
         currentPage = 1;
     }
 
     function setPage(page: number): void {
         if (page >= 1 && page <= maxPages) {
             currentPage = page;
+            console.log('Page set to:', page);
         }
     }
-    
+
     function nextPage(): void {
         if (currentPage < maxPages) {
             currentPage++;
+            console.log('Next page:', currentPage);
         }
     }
-    
+
     function prevPage(): void {
         if (currentPage > 1) {
             currentPage--;
+            console.log('Previous page:', currentPage);
         }
     }
-    
+
     function changeMonth(direction: number): void {
         currentCalendarMonth += direction;
         if (currentCalendarMonth > 11) {
@@ -446,38 +420,39 @@
             currentCalendarMonth = 11;
             currentCalendarYear--;
         }
+        console.log('Calendar updated:', { month: monthNames[currentCalendarMonth], year: currentCalendarYear });
     }
 
     function generateCalendarDays(month: number, year: number): CalendarDay[] {
         const firstDay: number = new Date(year, month, 1).getDay();
         const daysInMonth: number = new Date(year, month + 1, 0).getDate();
-        const today: Date = new Date();
+        const today: Date = new Date(); // Set to current date
         const days: CalendarDay[] = [];
-        
-        // Add day headers
+
         const dayHeaders: string[] = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
         dayHeaders.forEach((day: string) => {
             days.push({ text: day, isHeader: true });
         });
 
-        // Add empty cells for days before month starts
         for (let i = 0; i < firstDay; i++) {
             days.push({ text: '', isEmpty: true });
         }
 
-        // Add days of the month
         for (let day = 1; day <= daysInMonth; day++) {
             const isToday: boolean =
                 year === today.getFullYear() &&
                 month === today.getMonth() &&
                 day === today.getDate();
             days.push({ text: day, isToday });
+            if (isToday) {
+                console.log('Today detected:', { day, month: monthNames[month], year });
+            }
         }
-        
+
+        console.log('Generated calendar days:', days);
         return days;
     }
 
-    // Event handlers dengan proper typing
     function handleKeyDown(e: KeyboardEvent, action: () => void): void {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -485,191 +460,154 @@
         }
     }
 
-    // Update pagination when reactive values change
-    $: updatePagination(activeFilter, currentPage, filteredActivities);
+    const searchedActivities = $derived(searchActivities(activities, searchQuery));
+    const filteredActivities = $derived(getFilteredActivities(activeFilter, searchedActivities));
+    const visibleActivities = $derived(getVisibleActivities(activeFilter, currentPage, filteredActivities));
+    const maxPages = $derived(Math.ceil(filteredActivities.length / itemsPerPage));
+    const calendarDays = $derived(generateCalendarDays(currentCalendarMonth, currentCalendarYear));
 
-    // Main authentication reactive statement
-    //$: if (mounted && !checkAuthentication()) {
-        //goto('/login');
-    //}
+    $effect(() => {
+        updatePagination(activeFilter, currentPage, filteredActivities);
+    });
 
     onMount(() => {
         console.log('Dashboard component mounted');
         mounted = true;
-        
-        // Setup user display regardless of auth status
         setupUserDisplay();
-        
-        // Untuk development/testing, comment baris di bawah jika ingin skip auth
-        // checkAuthentication();
+        checkAuthentication();
     });
 </script>
 
 <svelte:head>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
 </svelte:head>
 
-<div class="app">
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Header -->
-        <header class="header">
-            <div>
-                <div class="header-title">Selamat Datang {displayName}</div>
-                <div class="header-subtitle">Content Management System Dashboard</div>
-            </div>
-            <div class="header-right">
-                <div class="search-box">
-                    <input 
-                        type="text" 
-                        placeholder="Search " 
-                        bind:value={searchQuery}
-                        on:input={handleSearch}
-                    >
-                    <span class="material-symbols-outlined search-icon">search</span>
+<div class="app flex min-h-screen bg-[#ECF6F9]">
+    <div class="main-content flex-1 p-0 w-full">
+        <!-- Fixed Header Section with Unified Background -->
+        <div class="header-container p-4 xl:p-5 mx-0 mb-5 w-full">
+            <header class="header bg-white rounded-lg border-b border-gray-200 p-4 flex justify-between items-center xl:p-5 w-full">
+                <div class="header-left flex-1">
+                    <div class="header-title text-xl font-bold text-gray-900 tracking-tight xl:text-2xl">{displayName}</div>
+                    <div class="header-subtitle text-xs text-gray-500 mt-1 xl:text-sm">Content Management System Dashboard</div>
                 </div>
-                <div class="profile-section">
-                    <div class="profile-avatar">{displayInitial}</div>
-                    <div class="profile-name">{displayName}</div>
-                    <button 
-                        class="settings-btn" 
-                        on:click={goToSettings} 
-                        title="Settings"
-                        type="button"
-                    >
-                        <span class="material-symbols-outlined">settings</span>
-                    </button>
+                <div class="header-right flex items-center gap-3">
+                    <div class="search-box flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 w-64 h-9 xl:w-80">
+                        <input 
+                            type="text" 
+                            placeholder="Search" 
+                            bind:value={searchQuery}
+                            on:input={handleSearch}
+                            class="border-none bg-transparent outline-none focus:outline-none flex-1 text-sm xl:text-base"
+                        />
+                        <span class="material-symbols-outlined search-icon text-gray-500 cursor-pointer text-lg">search</span>
+                    </div>
+                    <div class="profile-section flex items-center gap-2 xl:gap-3">
+                        <div class="profile-avatar w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-xs">{displayInitial}</div>
+                        <div class="profile-info">
+                            <div class="profile-name font-medium text-sm text-gray-900">{displayName}</div>
+                            <div class="profile-role text-xs text-gray-500">Administrator</div>
+                        </div>
+                        <button 
+                            class="settings-btn cursor-pointer text-black hover:text-gray-700 transition-colors p-0"
+                            on:click={goToSettings} 
+                            title="Settings"
+                            type="button"
+                        >
+                            <span class="material-symbols-outlined text-xl">settings</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
-        </header>
+            </header>
+        </div>
 
-        <!-- Dashboard Content -->
-        <div class="dashboard-content">
-            <div class="main-section">
-                <!-- Stats Grid -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <span class="material-symbols-outlined">settings</span>
+        <div class="dashboard-content grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-4 p-4 xl:p-5">
+            <div class="main-section flex flex-col gap-4">
+                <div class="stats-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {#each [{ icon: 'settings', number: 35, label: 'Services', desc: 'Total layanan yang tersedia' }, { icon: 'inventory_2', number: 3, label: 'Products', desc: 'Produk dalam sistem' }, { icon: 'group', number: 2, label: 'Admin', desc: 'Total pengguna admin aktif' }] as stat}
+                        <div class="stat-card relative bg-white rounded-lg p-4 shadow-sm text-center overflow-hidden">
+                            <div class="stat-icon w-9 h-9 rounded-lg flex items-center justify-center mx-auto mb-2.5 text-black text-lg">
+                                <span class="material-symbols-outlined">{stat.icon}</span>
+                            </div>
+                            <div class="stat-number text-2xl font-bold text-gray-900 mb-1">{stat.number}</div>
+                            <div class="stat-label text-sm font-semibold text-blue-600 mb-0.5">{stat.label}</div>
+                            <div class="stat-desc text-xs text-gray-500 flex items-center justify-center">
+                                <span class="green-icon material-symbols-outlined text-green-500 text-xs mr-0.5">trending_up</span>
+                                {stat.desc}
+                            </div>
                         </div>
-                        <div class="stat-number">35</div>
-                        <div class="stat-label">Services</div>
-                        <div class="stat-desc">
-                             <span class="green-icon material-symbols-outlined">trending_up</span>
-                            Total layanan yang tersedia
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <span class="material-symbols-outlined">inventory_2</span>
-                        </div>
-                        <div class="stat-number">3</div>
-                        <div class="stat-label">Products</div>
-                        <div class="stat-desc">
-                             <span class="green-icon material-symbols-outlined">trending_up</span>
-                            Produk dalam sistem
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <span class="material-symbols-outlined">group</span>
-                        </div>
-                        <div class="stat-number">2</div>
-                        <div class="stat-label">Admin</div>
-                        <div class="stat-desc">
-                            <span class="green-icon material-symbols-outlined">trending_up</span>
-                            Total pengguna admin aktif
-                        </div>
-                    </div>
+                    {/each}
                 </div>
 
-                <!-- Activity Section -->
-                <div class="container">
-                    <div class="header-activity">
-                        <h1>Recent Activity</h1>
-                        <div class="filter-tabs">
-                            <div 
-                                class="filter-tab"
-                                class:active={activeFilter === 'all'}
-                                on:click={() => setFilter('all')}
-                                on:keydown={(e) => handleKeyDown(e, () => setFilter('all'))}
-                                role="button"
-                                tabindex="0"
-                            >
-                                All
-                            </div>
-                            <div 
-                                class="filter-tab"
-                                class:active={activeFilter === 'updates'}
-                                on:click={() => setFilter('updates')}
-                                on:keydown={(e) => handleKeyDown(e, () => setFilter('updates'))}
-                                role="button"
-                                tabindex="0"
-                            >
-                                Updates
-                            </div>
-                            <div 
-                                class="filter-tab"
-                                class:active={activeFilter === 'uploads'}
-                                on:click={() => setFilter('uploads')}
-                                on:keydown={(e) => handleKeyDown(e, () => setFilter('uploads'))}
-                                role="button"
-                                tabindex="0"
-                            >
-                                Uploads
-                            </div>
+                <div class="container bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div class="header-activity bg-[#2448B1] text-white p-2.5 px-4 flex justify-between items-center">
+                        <h1 class="text-sm font-semibold">Recent Activity</h1>
+                        <div class="filter-tabs flex gap-1">
+                            {#each ['all', 'updates', 'uploads'] as filter}
+                                <div 
+                                    class="filter-tab px-1.5 py-0.5 border border-white/30 bg-white/10 rounded-md cursor-pointer text-[10px] transition-all hover:bg-white/20"
+                                    class:active={activeFilter === filter}
+                                    on:click={() => setFilter(filter)}
+                                    on:keydown={(e) => handleKeyDown(e, () => setFilter(filter))}
+                                    role="button"
+                                    tabindex="0"
+                                >
+                                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                                </div>
+                            {/each}
                         </div>
                     </div>
 
-                    <div class="table-header">
+                    <div class="table-header grid grid-cols-[80px_1fr_70px_80px] p-1.5 px-3 bg-gray-50 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
                         <div>DATE</div>
                         <div>ACTIVITY</div>
                         <div>STATUS</div>
                         <div>USER</div>
                     </div>
 
-                    <div class="activity-list">
+                    <div class="activity-list min-h-[220px]">
                         {#if visibleActivities && visibleActivities.length > 0}
                             {#each visibleActivities as activity (activity.date + activity.time)}
-                                <div class="activity-item">
-                                    <div class="date-time">
-                                        <div class="date">{activity.date}</div>
-                                        <div>{activity.time}</div>
+                                <div class="activity-item grid grid-cols-[80px_1fr_70px_80px] p-1.5 px-3 border-b border-gray-200 items-center hover:bg-gray-50">
+                                    <div class="date-time text-[10px] text-gray-500 flex flex-col">
+                                        <div class="date font-medium text-gray-900 text-xs">{activity.date}</div>
+                                        <div class="time text-[10px]">{activity.time}</div>
                                     </div>
-                                    <div class="activity-content">
-                                        <div class="activity-icon {activity.iconClass}">
+                                    <div class="activity-content flex items-center gap-1.5">
+                                        <div class="activity-icon w-5 h-5 rounded flex items-center justify-center text-xs {activity.iconClass}">
                                             <span class="material-symbols-outlined">{activity.icon}</span>
                                         </div>
                                         <div class="activity-details">
-                                            <h3>{activity.title}</h3>
-                                            <p>{activity.desc}</p>
+                                            <h3 class="text-xs font-semibold text-gray-900 mb-0.5">{activity.title}</h3>
+                                            <p class="text-[10px] text-gray-500">{activity.desc}</p>
                                         </div>
                                     </div>
-                                    <div class="status-badge status-{activity.status}">
-                                        <div class="status-dot status-dot-{activity.status}"></div>
+                                    <div class="status-badge status-{activity.status} flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-medium text-center w-14">
+                                        <div class="status-dot status-dot-{activity.status} w-1 h-1 rounded-full"></div>
                                         {activity.status ? activity.status.toUpperCase() : ''}
                                     </div>
-                                    <div class="user-info">
-                                        <div class="user-avatar {activity.avatarClass}">{activity.avatar}</div>
-                                        <div class="user-name">{activity.user}</div>
+                                    <div class="user-info flex items-center gap-1">
+                                        <div class="user-avatar {activity.avatarClass} w-4 h-4 rounded-full flex items-center justify-center font-semibold text-white text-[8px]">{activity.avatar}</div>
+                                        <div class="user-name text-[10px] font-medium text-gray-900">{activity.user}</div>
                                     </div>
                                 </div>
                             {/each}
                         {:else}
-                            <div class="no-results">
-                                <span class="material-symbols-outlined">search_off</span>
-                                <p>No activities found matching your search</p>
+                            <div class="no-results flex flex-col items-center justify-center p-8 text-gray-500 text-center">
+                                <span class="material-symbols-outlined text-3xl mb-1.5 opacity-50">search_off</span>
+                                <p class="text-xs">No activities found matching your search</p>
                             </div>
                         {/if}
                     </div>
 
-                    <div class="pagination">
-                        <div class="activity-count">
+                    <div class="pagination p-1.5 px-3 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                        <div class="activity-count text-[10px] text-gray-500">
                             Showing {activityRange} of {totalActivities} activities
                         </div>
-                        <div class="page-controls">
+                        <div class="page-controls flex gap-0.5 items-center">
                             <button 
-                                class="page-btn"
+                                class="page-btn px-1.5 py-0.5 border border-gray-300 bg-white text-gray-700 rounded-md text-[9px] transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
                                 disabled={currentPage === 1}
                                 on:click={prevPage}
                                 type="button"
@@ -678,7 +616,7 @@
                             </button>
                             {#each Array(maxPages) as _, i}
                                 <button 
-                                    class="page-btn {currentPage === i + 1 ? 'active' : ''}"
+                                    class="page-btn px-1.5 py-0.5 border border-gray-300 rounded-md text-[9px] transition-all {currentPage === i + 1 ? 'bg-[#2448B1] text-white border-[#2448B1]' : 'bg-white text-gray-700 hover:bg-gray-100'}"
                                     on:click={() => setPage(i + 1)}
                                     type="button"
                                 >
@@ -686,7 +624,7 @@
                                 </button>
                             {/each}
                             <button 
-                                class="page-btn"
+                                class="page-btn px-1.5 py-0.5 border border-gray-300 bg-white text-gray-700 rounded-md text-[9px] transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
                                 disabled={currentPage >= maxPages}
                                 on:click={nextPage}
                                 type="button"
@@ -699,117 +637,78 @@
             </div>
             
             <div class="container">
-                <!-- Sidebar Section -->
-                <div class="sidebar-section">
-                    <!-- Calendar Widget -->
-                    <div class="modern-calendar-widget">
-                        <div class="calendar-month-header">
-                            <button 
-                                class="calendar-nav" 
-                                on:click={() => changeMonth(-1)}
-                                type="button"
-                            >
-                                <span class="material-symbols-outlined">chevron_left</span>
-                            </button>
-                            <div class="calendar-month-name">
-                                {monthNames[currentCalendarMonth]} {currentCalendarYear}
+                <div class="sidebar-section flex flex-col gap-4">
+                    <div class="modern-calendar-widget bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="calendar-header p-4 border-b border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <button 
+                                    class="calendar-nav w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all"
+                                    on:click={() => changeMonth(-1)}
+                                    type="button"
+                                >
+                                    <span class="material-symbols-outlined text-base">chevron_left</span>
+                                </button>
+                                <h2 class="calendar-title text-base font-semibold text-gray-900">
+                                    {monthNames[currentCalendarMonth]} {currentCalendarYear}
+                                </h2>
+                                <button 
+                                    class="calendar-nav w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all"
+                                    on:click={() => changeMonth(1)}
+                                    type="button"
+                                >
+                                    <span class="material-symbols-outlined text-base">chevron_right</span>
+                                </button>
                             </div>
-                            <button 
-                                class="calendar-nav" 
-                                on:click={() => changeMonth(1)}
-                                type="button"
-                            >
-                                <span class="material-symbols-outlined">chevron_right</span>
-                            </button>
                         </div>
-                        <div class="calendar-content">
-                            <div class="calendar-headers">
-                                {#each calendarDays.slice(0, 7) as day}
-                                    <div class="calendar-day-header">{day.text}</div>
+                        
+                        <div class="calendar-body p-4">
+                            <div class="calendar-weekdays grid grid-cols-7 gap-1 mb-2">
+                                {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as day}
+                                    <div class="calendar-weekday text-center text-xs font-medium text-gray-500 py-2">
+                                        {day}
+                                    </div>
                                 {/each}
                             </div>
-                            <div class="calendar-grid">
+                            
+                            <div class="calendar-days grid grid-cols-7 gap-1">
                                 {#each calendarDays.slice(7) as day}
-                                    <div class="calendar-day" 
-                                         class:today={day.isToday} 
-                                         class:empty={day.isEmpty}>
-                                        {day.text}
+                                    <div class="calendar-day-cell">
+                                        {#if !day.isEmpty}
+                                            <button 
+                                                class="calendar-day w-full h-8 flex items-center justify-center text-sm rounded-md transition-all {day.isToday ? 'bg-[#2448B1] text-white font-semibold shadow-sm' : 'text-gray-700 hover:bg-gray-100'}"
+                                                type="button"
+                                            >
+                                                {day.text}
+                                            </button>
+                                        {:else}
+                                            <div class="w-full h-8"></div>
+                                        {/if}
                                     </div>
                                 {/each}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Customers Section -->
-                    <div class="customers-section">
-                        <div class="customers-header">
-                            <!-- Custom 3-person SVG icon -->
-                            <div class="custom-three-person-icon">
-                                <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
-                                    <!-- Person 1 -->
+                    <div class="customers-section bg-white rounded-lg p-4 shadow-sm flex flex-col items-center">
+                        <div class="customers-header flex flex-col items-center gap-1.5 mb-3 text-gray-900">
+                            <div class="custom-three-person-icon flex items-center justify-center">
+                                <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
                                     <circle cx="6" cy="6" r="2.5"/>
                                     <path d="M6 10c-2.5 0-4.5 2-4.5 4.5v1.5h9v-1.5C10.5 12 8.5 10 6 10z"/>
-                                    
-                                    <!-- Person 2 -->
                                     <circle cx="12" cy="6" r="2.5"/>
                                     <path d="M12 10c-2.5 0-4.5 2-4.5 4.5v1.5h9v-1.5C16.5 12 14.5 10 12 10z"/>
-                                    
-                                    <!-- Person 3 -->
                                     <circle cx="18" cy="6" r="2.5"/>
                                     <path d="M18 10c-2.5 0-4.5 2-4.5 4.5v1.5h9v-1.5C22.5 12 20.5 10 18 10z"/>
                                 </svg>
                             </div>
-                            <div class="customers-title">Our Customers</div>
+                            <div class="customers-title font-semibold text-base">Our Customers</div>
                         </div>
-                        <div class="customers-grid">
-                            <div class="customer-logo">
-                                <img src={custbkj} alt="BKJ" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src={custfinnet} alt="finnet" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src={custlintasarta} alt="lintasarta" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src={custbtn} alt="btn" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src={custbri} alt="BRI" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src={custcaptifit} alt="captifit" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src={custkemnaker} alt="kemnaker" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src={custlinknet} alt="Linknet" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/hotkan-logo.png" alt="Hotkan Datapack" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/customer-placeholder1.png" alt="Customer 10" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/customer-placeholder2.png" alt="Customer 11" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/customer-placeholder3.png" alt="Customer 12" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/customer-placeholder4.png" alt="Customer 13" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/customer-placeholder5.png" alt="Customer 14" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/customer-placeholder6.png" alt="Customer 15" class="customer-image" />
-                            </div>
-                            <div class="customer-logo">
-                                <img src="/assets/customer-placeholder7.png" alt="Customer 16" class="customer-image" />
-                            </div>
+                        <div class="customers-grid grid grid-cols-4 gap-2 justify-items-center max-w-[300px] w-full">
+                            {#each [custbkj, custfinnet, custlintasarta, custbtn, custbri, custcaptifit, custkemnaker, custlinknet, '/assets/hotkan-logo.png', '/assets/customer-placeholder1.png', '/assets/customer-placeholder2.png', '/assets/customer-placeholder3.png', '/assets/customer-placeholder4.png', '/assets/customer-placeholder5.png', '/assets/customer-placeholder6.png', '/assets/customer-placeholder7.png'] as src, i}
+                                <div class="customer-logo aspect-square bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:border-blue-600 hover:-translate-y-0.5 hover:shadow-md p-1 shadow-sm h-16 w-16">
+                                    <img src={src} alt="Customer {i + 1}" class="customer-image w-full h-full object-contain rounded transition-transform hover:scale-105" />
+                                </div>
+                            {/each}
                         </div>
                     </div>
                 </div>
@@ -818,657 +717,143 @@
     </div>
 </div>
 
-<style>
-    :global(*) {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    :global(body) {
+<style lang="postcss">
+    @reference "tailwindcss";
+    
+    :global(html, body) {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background-color: #f5f7fa;
+        @apply bg-[#ECF6F9] m-0 p-0 box-border;
     }
 
-    .app {
-        display: flex;
-        min-height: 100vh;
-    }
-
-    .main-content {
-        flex: 1;
-        padding: 0;
+    .header-container {
+        @apply p-4 xl:p-5 mx-0 mb-5 w-full;
     }
 
     .header {
-        background: white;
-        padding: 12px 20px;
-        border-bottom: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: 12px 20px 20px 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        @apply bg-white rounded-lg border-b border-gray-200 p-4 flex justify-between items-center xl:p-5 w-full;
     }
 
-    .header-title {
-        font-size: 22px;
-        font-weight: 700;
-        color: #1e293b;
-        letter-spacing: -0.3px; 
-    }
-
-    .header-subtitle {
-        font-size: 12px;
-        color: #64748b;
-        margin-top: 3px;
+    .header-left {
+        @apply flex-1;
     }
 
     .header-right {
-        display: flex;
-        align-items: center;
-        gap: 12px;
+        @apply flex items-center gap-3;
     }
 
     .search-box {
-        display: flex;
-        align-items: center;
-        background: #f8f9fc;
-        border: 1px solid #e2e8f0;
-        border-radius: 18px;
-        padding: 8px 16px;
-        width: 320px;
-        height: 38px;
+        @apply flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 w-64 h-9 xl:w-80 transition-all duration-200;
     }
 
-    .search-box input {
-        border: none;
-        background: none;
-        outline: none;
-        flex: 1;
-        padding: 3px 6px;
-        font-size: 13px;
-    }
-
-    .search-icon {
-        color: #64748b;
-        cursor: pointer;
-        font-size: 18px;
+    .search-box:focus-within {
+        @apply border-blue-500 ring-2 ring-blue-100;
     }
 
     .profile-section {
-        display: flex;
-        align-items: center;
-        gap: 6px;
+        @apply flex items-center gap-2 xl:gap-3;
     }
 
     .profile-avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: #4f6cc9;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 600;
-        font-size: 12px;
-    }
-
-    .profile-name {
-        font-weight: 500;
-        font-size: 13px;
-        color: #1e293b;
+        @apply w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-xs;
     }
 
     .settings-btn {
-        padding: 5px;
-        background: #f8f9fc;
-        border: 1px solid #e2e8f0;
-        border-radius: 5px;
-        cursor: pointer;
-        color: #64748b;
+        @apply cursor-pointer text-black hover:text-gray-700 transition-colors p-0 bg-transparent border-none;
     }
 
-    .dashboard-content {
-        padding: 18px;
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 18px;
+    .icon-product {
+        @apply bg-blue-50 text-blue-600;
     }
 
-    .main-section {
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
+    .icon-content {
+        @apply bg-purple-50 text-purple-700;
     }
 
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
+    .icon-customer {
+        @apply bg-green-50 text-green-700;
     }
 
-    .stat-card {
-        background: white;
-        border-radius: 10px;
-        padding: 16px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        text-align: center;
-        position: relative;
-        overflow: hidden;
+    .icon-upload {
+        @apply bg-orange-50 text-orange-600;
     }
 
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 6px;
-        background: linear-gradient(90deg, #2448B1);
-    }
-
-    .stat-icon {
-        width: 34px;
-        height: 34px;
-        background: #B2DBFF;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 10px;
-        color: #2854C5;
-        font-size: 18px;
-        line-height: 1;
-    }
-
-    .stat-number {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 5px;
-    }
-
-    .stat-label {
-        font-size: 13px;
-        font-weight: 600;
-        color: #4f6cc9;
-        margin-bottom: 2px;
-    }
-
-    .stat-desc {
-        font-size: 10px;
-        color: #64748b;
-    }
-
-    .green-icon {
-        color: #28a745;           
-        font-size: 11px;          
-        margin-right: 2px;        
-        vertical-align: middle;   
-    }
-
-    .container {
-        background: white;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-    }
-
-    .header-activity {
-        background: linear-gradient(135deg, #4f6cc9, #5a7bd4);
-        color: white;
-        padding: 10px 14px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .header-activity h1 {
-        font-size: 16px;
-        margin: 0;
-    }
-
-    .filter-tabs {
-        display: flex;
-        gap: 5px;
-    }
-
-    .filter-tab {
-        padding: 4px 8px;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 11px;
-    }
-
-    .filter-tab.active,
-    .filter-tab:hover {
-        background: rgba(255, 255, 255, 0.2);
-    }
-
-    .table-header {
-        display: grid;
-        grid-template-columns: 80px 1fr 70px 80px;
-        padding: 6px 14px;
-        background: #f8f9fc;
-        font-weight: 600;
-        font-size: 10px;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-    }
-
-    .activity-list {
-        min-height: 280px;
-    }
-
-    .activity-item {
-        display: grid;
-        grid-template-columns: 80px 1fr 70px 80px;
-        padding: 6px 14px;
-        border-bottom: 1px solid #e2e8f0;
-        align-items: center;
-    }
-
-    .activity-item:hover {
-        background-color: #f8f9fc;
-    }
-
-    .no-results {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 14px;
-        color: #64748b;
-        text-align: center;
-    }
-
-    .no-results .material-symbols-outlined {
-        font-size: 35px;
-        margin-bottom: 8px;
-        opacity: 0.5;
-    }
-
-    .no-results p {
-        font-size: 13px;
-        margin: 0;
-    }
-
-    .date-time {
-        font-size: 10px;
-        color: #64748b;
-    }
-
-    .date {
-        font-weight: 500;
-        color: #1e293b;
-        font-size: 11px;
-    }
-
-    .activity-content {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .activity-icon {
-        width: 22px;
-        height: 22px;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        flex-shrink: 0;
-    }
-
-    :global(.icon-product) { background: #e1f5fe; color: #0277bd; }
-    :global(.icon-content) { background: #f3e5f5; color: #7b1fa2; }
-    :global(.icon-customer) { background: #e8f5e8; color: #2e7d32; }
-    :global(.icon-upload) { background: #fff3e0; color: #f57c00; }
-    :global(.icon-system) { background: #fce4ec; color: #c2185b; }
-
-    .activity-details h3 {
-        font-size: 12px;
-        font-weight: 600;
-        color: #1e293b;
-        margin-bottom: 1px;
-    }
-
-    .activity-details p {
-        font-size: 10px;
-        color: #64748b;
-    }
-
-    .status-badge {
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        padding: 2px 6px;
-        border-radius: 6px;
-        font-size: 9px;
-        font-weight: 500;
-        text-align: center;
-        width: 60px;
-    }
-
-    .status-dot {
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        flex-shrink: 0;
+    .icon-system {
+        @apply bg-gray-50 text-gray-600;
     }
 
     .status-success {
-        background: #e6ffe6;
-        color: #28a745;
+        @apply bg-green-100 text-green-600;
     }
 
     .status-dot-success {
-        background: #28a745;
+        @apply bg-green-600 w-1 h-1 rounded-full aspect-square;
     }
 
     .status-pending {
-        background: #fff3cd;
-        color: #856404;
+        @apply bg-yellow-100 text-yellow-800;
     }
 
     .status-dot-pending {
-        background: #ffc107;
+        @apply bg-yellow-500 w-1 h-1 rounded-full aspect-square;
     }
 
     .status-failed {
-        background: #f8d7da;
-        color: #dc3545;
+        @apply bg-red-100 text-red-600;
     }
 
     .status-dot-failed {
-        background: #dc3545;
+        @apply bg-red-600 w-1 h-1 rounded-full aspect-square;
     }
 
-    .user-info {
-        display: flex;
-        align-items: center;
-        gap: 5px;
+    .avatar-putri {
+        @apply bg-indigo-500;
     }
 
-    .user-avatar {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 10px;
-        color: white;
-        flex-shrink: 0;
+    .avatar-sarah {
+        @apply bg-blue-500;
     }
 
-    .user-name {
-        font-size: 11px;
-        font-weight: 500;
-        color: #1e293b;
+    .avatar-joseph {
+        @apply bg-purple-500;
     }
 
-    :global(.avatar-putri) { background: #6366f1; }
-    :global(.avatar-sarah) { background: #3b82f6; }
-    :global(.avatar-joseph) { background: #8b5cf6; }
-    :global(.avatar-fattyah) { background: #06b6d4; }
-    :global(.avatar-annisa) { background: #10b981; }
-    :global(.avatar-zalfa) { background: #f59e0b; }
-    :global(.avatar-ivan) { background: #ef4444; }
-    :global(.avatar-maya) { background: #ec4899; }
-    :global(.avatar-rudi) { background: #84cc16; }
-    :global(.avatar-sari) { background: #f97316; }
-    :global(.avatar-dimas) { background: #8b5a2b; }
-    :global(.avatar-lina) { background: #06d6a0; }
-
-    .pagination {
-        padding: 6px 14px;
-        background: #f8f9fc;
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .avatar-fattyah {
+        @apply bg-cyan-500;
     }
 
-    .activity-count {
-        color: #64748b;
-        font-size: 11px;
+    .avatar-annisa {
+        @apply bg-green-500;
     }
 
-    .page-controls {
-        display: flex;
-        gap: 4px;
-        align-items: center;
+    .avatar-zalfa {
+        @apply bg-yellow-500;
     }
 
-    .page-btn {
-        padding: 3px 6px;
-        border: 1px solid #d1d5db;
-        background: white;
-        color: #374151;
-        border-radius: 3px;
-        cursor: pointer;
-        font-size: 10px;
-        transition: all 0.2s ease;
+    .avatar-ivan {
+        @apply bg-red-500;
     }
 
-    .page-btn:hover {
-        background: #f3f4f6;
+    .avatar-maya {
+        @apply bg-pink-500;
     }
 
-    .page-btn.active {
-        background: #4f6cc9;
-        color: white;
-        border-color: #4f6cc9;
+    .avatar-rudi {
+        @apply bg-lime-500;
     }
 
-    .page-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+    .avatar-sari {
+        @apply bg-orange-500;
     }
 
-    .page-btn:disabled:hover {
-        background: white;
+    .avatar-dimas {
+        @apply bg-lime-500;
     }
 
-    .sidebar-section {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+    .avatar-lina {
+        @apply bg-teal-500;
     }
 
-    .custom-three-person-icon {
-        color: #1e293b;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .custom-three-person-icon svg {
-        width: 48px;
-        height: 48px;
-        fill: currentColor;
-    }
-
-    .customers-section {
-        background: white;
-        border-radius: 14px;
-        padding: 24px;
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .customers-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 16px;
-        color: #1e293b;
-    }
-
-    .customers-title {
-        font-weight: 600;
-        font-size: 20px;
-    }
-
-    .customers-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        justify-items: center;
-        width: 100%;
-        max-width: 360px;
-        margin: 0 auto;
-    }
-
-    .customer-logo {
-        aspect-ratio: 1;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        overflow: hidden;
-        position: relative;
-        padding: 6px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        height: 80px;
-        width: 80px;
-    }
-
-    .customer-logo:hover {
-        border-color: #4f6cc9;
-        transform: translateY(-2px);
-        box-shadow: 0 3px 8px rgba(79, 108, 201, 0.15);
-    }
-
-    .customer-image {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        border-radius: 6px;
-        transition: transform 0.3s ease;
-    }
-
-    .customer-logo:hover .customer-image {
-        transform: scale(1.05);
-    }
-
-    .modern-calendar-widget {
-        background: white;
-        border-radius: 10px;
-        padding: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e2e8f0;
-    }
-
-    .calendar-month-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-
-    .calendar-nav {
-        background: none;
-        border: none;
-        color: #4f6cc9;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 3px;
-        transition: background-color 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .calendar-nav:hover {
-        background: #f1f5f9;
-    }
-
-    .calendar-nav .material-symbols-outlined {
-        font-size: 16px;
-    }
-
-    .calendar-month-name {
-        font-weight: 600;
-        color: #1e293b;
-        font-size: 13px;
-    }
-
-    .calendar-content {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .calendar-headers {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 1px;
-    }
-
-    .calendar-day-header {
-        text-align: center;
-        font-weight: 600;
-        color: #64748b;
-        font-size: 9px;
-        padding: 3px 1px;
-    }
-
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 1px;
-    }
-
-    .calendar-day {
-        aspect-ratio: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        border-radius: 3px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        padding: 1px;
-        min-height: 22px;
-        color: #1e293b;
-    }
-
-    .calendar-day.empty {
-        cursor: default;
-        color: transparent;
-    }
-
-    .calendar-day.today {
-        background: #4f6cc9;
-        color: white;
-        font-weight: 600;
-    }
-
-    .calendar-day:hover:not(.empty):not(.today) {
-        background: #f1f5f9;
-        color: #4f6cc9;
-    }
-
-    :global(.material-symbols-outlined) {
+    .material-symbols-outlined {
         font-family: 'Material Symbols Outlined';
         font-weight: normal;
         font-style: normal;
@@ -1483,339 +868,440 @@
         font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     }
 
-    /* Responsive breakpoints - LEBIH COMPACT */
-    
-    /* Large laptops (15"-17") - LEBIH KECIL */
+    .stat-card {
+        @apply relative bg-white rounded-lg p-4 shadow-sm text-center overflow-hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 0.375rem;
+        background: #2448B1;
+        z-index: 1;
+    }
+
+    .filter-tab.active {
+        @apply bg-white/30 border-white;
+    }
+
+    /* Responsive breakpoints with adjusted spacing */
     @media (max-width: 1440px) {
-        .header-title {
-            font-size: 20px;
+        .header-container {
+            @apply p-4 mx-0 mb-4;
         }
-        
-        .search-box {
-            width: 280px;
-            height: 36px;
-        }
-        
-        .dashboard-content {
-            padding: 16px;
-            gap: 16px;
-        }
-        
-        .stat-card {
-            padding: 14px;
-        }
-        
-        .stat-number {
-            font-size: 22px;
-        }
-
-        .customers-grid {
-            max-width: 320px;
-        }
-        
-        .customer-logo {
-            height: 72px;
-            width: 72px;
-        }
-    }
-
-    /* Standard laptops (13"-15") - LEBIH COMPACT */
-    @media (max-width: 1366px) {
         .header {
-            padding: 10px 16px;
-            margin: 10px 16px 16px 16px;
+            @apply p-4;
         }
-        
         .header-title {
-            font-size: 19px;
+            @apply text-xl;
         }
-        
         .search-box {
-            width: 260px;
-            height: 34px;
-            padding: 6px 12px;
+            @apply w-60 h-9;
         }
-        
         .dashboard-content {
-            padding: 14px;
-            gap: 14px;
+            @apply p-4 gap-4;
         }
-        
-        .stats-grid {
-            gap: 10px;
-        }
-        
         .stat-card {
-            padding: 12px;
+            @apply p-3.5;
         }
-        
         .stat-number {
-            font-size: 20px;
+            @apply text-xl;
         }
-        
-        .stat-icon {
-            width: 30px;
-            height: 30px;
-            font-size: 16px;
-        }
-        
-        .activity-list {
-            min-height: 260px;
-        }
-
         .customers-grid {
-            max-width: 300px;
+            @apply max-w-[280px] gap-1.5;
         }
-        
         .customer-logo {
-            height: 68px;
-            width: 68px;
+            @apply h-14 w-14;
+        }
+        .calendar-header {
+            @apply p-3;
+        }
+        .calendar-body {
+            @apply p-3;
         }
     }
 
-    /* Compact laptops (13" dan lebih kecil) - SANGAT COMPACT */
+    @media (max-width: 1366px) {
+        .header-container {
+            @apply p-3.5 mx-0 mb-4;
+        }
+        .header {
+            @apply p-3.5;
+        }
+        .header-title {
+            @apply text-lg;
+        }
+        .search-box {
+            @apply w-56 h-8.5 p-2;
+        }
+        .dashboard-content {
+            @apply p-3.5 gap-3.5;
+        }
+        .stats-grid {
+            @apply gap-2.5;
+        }
+        .stat-card {
+            @apply p-3;
+        }
+        .stat-number {
+            @apply text-lg;
+        }
+        .stat-icon {
+            @apply w-7 h-7 text-base mb-2;
+        }
+        .activity-list {
+            @apply min-h-[200px];
+        }
+        .customers-section {
+            @apply p-3.5;
+        }
+        .customers-header {
+            @apply gap-1 mb-2.5;
+        }
+        .customers-title {
+            @apply text-sm;
+        }
+        .customers-grid {
+            @apply max-w-[260px] gap-1.5;
+        }
+        .customer-logo {
+            @apply h-12 w-12 p-0.75;
+        }
+        .custom-three-person-icon svg {
+            @apply w-8 h-8;
+        }
+        .calendar-header {
+            @apply p-3;
+        }
+        .calendar-body {
+            @apply p-3;
+        }
+        .calendar-title {
+            @apply text-sm;
+        }
+        .calendar-nav {
+            @apply w-7 h-7;
+        }
+    }
+
     @media (max-width: 1280px) {
         .header-title {
-            font-size: 18px;
+            @apply text-base;
         }
-        
         .search-box {
-            width: 240px;
-            height: 32px;
-            padding: 5px 10px;
+            @apply w-52 h-8 p-2;
         }
-        
         .search-box input {
-            font-size: 12px;
+            @apply text-xs;
         }
-        
         .dashboard-content {
-            padding: 12px;
-            gap: 12px;
+            @apply p-3 gap-3;
         }
-        
         .stats-grid {
-            gap: 8px;
+            @apply gap-2;
         }
-        
         .stat-card {
-            padding: 10px;
+            @apply p-2.5;
         }
-        
         .stat-number {
-            font-size: 18px;
+            @apply text-base;
         }
-        
         .stat-icon {
-            width: 28px;
-            height: 28px;
-            font-size: 15px;
-            margin-bottom: 8px;
+            @apply w-6 h-6 text-sm mb-2;
         }
-        
         .stat-label {
-            font-size: 12px;
+            @apply text-xs;
         }
-        
         .stat-desc {
-            font-size: 9px;
+            @apply text-[9px];
         }
-        
         .activity-list {
-            min-height: 240px;
+            @apply min-h-[180px];
         }
-        
+        .customers-section {
+            @apply p-3;
+        }
+        .customers-header {
+            @apply gap-1 mb-2;
+        }
+        .customers-title {
+            @apply text-xs;
+        }
         .customers-grid {
-            grid-template-columns: repeat(4, 1fr);
-            max-width: 280px;
+            @apply grid-cols-4 max-w-[240px] gap-1.5;
         }
-        
         .customer-logo {
-            height: 64px;
-            width: 64px;
+            @apply h-11 w-11 p-0.75;
         }
-        
+        .custom-three-person-icon svg {
+            @apply w-7 h-7;
+        }
+        .calendar-header {
+            @apply p-2.5;
+        }
+        .calendar-body {
+            @apply p-2.5;
+        }
+        .calendar-title {
+            @apply text-sm;
+        }
+        .calendar-nav {
+            @apply w-6 h-6;
+        }
+        .calendar-weekday {
+            @apply py-1.5 text-[10px];
+        }
         .calendar-day {
-            min-height: 20px;
+            @apply h-7 text-xs;
         }
     }
 
-    /* Small laptops/tablets (breakpoint untuk single column) */
     @media (max-width: 1200px) {
         .dashboard-content {
-            grid-template-columns: 1fr;
+            @apply grid-cols-1;
         }
-        
+        .header-container {
+            @apply p-3 mx-0 mb-3.5;
+        }
         .header {
-            flex-direction: column;
-            gap: 10px;
-            text-align: center;
-            padding: 10px 12px;
-            margin: 10px 12px 14px 12px;
+            @apply flex-col gap-2 text-center p-3;
         }
-        
         .header-right {
-            width: 100%;
-            justify-content: center;
+            @apply flex-col gap-2;
         }
-        
-        .stats-grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-        
-        .table-header {
-            grid-template-columns: 60px 1fr 60px 70px;
-            padding: 5px 10px;
-            font-size: 9px;
-        }
-        
-        .activity-item {
-            grid-template-columns: 60px 1fr 60px 70px;
-            padding: 5px 10px;
-        }
-        
-        .customers-grid {
-            grid-template-columns: repeat(4, 1fr);
-            max-width: 260px;
-        }
-        
-        .customer-logo {
-            height: 60px;
-            width: 60px;
-        }
-    }
-
-    /* Tablets */
-    @media (max-width: 1024px) {
-        .header-title {
-            font-size: 17px;
-        }
-        
         .search-box {
-            width: 220px;
-            height: 30px;
+            @apply w-full max-w-lg;
         }
-        
         .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            @apply grid-cols-3 gap-2;
         }
-        
-        .stat-card {
-            padding: 10px;
-        }
-        
-        .stat-number {
-            font-size: 16px;
-        }
-        
-        .activity-details h3 {
-            font-size: 11px;
-        }
-        
-        .activity-details p {
-            font-size: 9px;
-        }
-        
-        .customers-grid {
-            grid-template-columns: repeat(3, 1fr);
-            max-width: 240px;
-        }
-        
-        .customer-logo {
-            height: 56px;
-            width: 56px;
-            padding: 4px;
-        }
-        
-        .calendar-day {
-            min-height: 18px;
-            font-size: 9px;
-        }
-    }
-
-    /* Mobile */
-    @media (max-width: 768px) {
-        .header {
-            margin: 6px;
-            padding: 8px 10px;
-        }
-        
-        .header-title {
-            font-size: 16px;
-        }
-        
-        .search-box {
-            width: 180px;
-            height: 28px;
-            padding: 4px 8px;
-        }
-        
-        .dashboard-content {
-            padding: 8px;
-            gap: 8px;
-        }
-        
-        .stats-grid {
-            grid-template-columns: 1fr;
-            gap: 6px;
-        }
-        
-        .stat-card {
-            padding: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            text-align: left;
-        }
-        
-        .stat-icon {
-            margin: 0;
-        }
-        
         .table-header {
-            grid-template-columns: 50px 1fr 50px 60px;
-            padding: 3px 6px;
-            font-size: 8px;
+            @apply grid-cols-[60px_1fr_60px_70px] p-1 px-2 text-[9px];
         }
-        
         .activity-item {
-            grid-template-columns: 50px 1fr 50px 60px;
-            padding: 3px 6px;
+            @apply grid-cols-[60px_1fr_60px_70px] p-1 px-2;
         }
-        
-        .customers-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-            max-width: 210px;
-        }
-        
-        .customer-logo {
-            height: 48px;
-            width: 48px;
-            padding: 3px;
-        }
-        
-        .modern-calendar-widget {
-            padding: 6px;
-        }
-        
-        .calendar-day {
-            min-height: 16px;
-            font-size: 8px;
-        }
-        
         .customers-section {
-            padding: 12px;
+            @apply p-2.5;
         }
-        
+        .customers-header {
+            @apply gap-1 mb-2;
+        }
         .customers-title {
-            font-size: 16px;
+            @apply text-xs;
         }
-        
+        .customers-grid {
+            @apply max-w-[220px] gap-1;
+        }
+        .customer-logo {
+            @apply h-10 w-10 p-0.5;
+        }
         .custom-three-person-icon svg {
-            width: 36px;
-            height: 36px;
+            @apply w-6 h-6;
+        }
+        .calendar-header {
+            @apply p-2;
+        }
+        .calendar-body {
+            @apply p-2;
+        }
+        .calendar-title {
+            @apply text-xs;
+        }
+        .calendar-nav {
+            @apply w-6 h-6;
+        }
+        .calendar-weekday {
+            @apply py-1 text-[10px];
+        }
+        .calendar-day {
+            @apply h-6 text-[10px];
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .header-container {
+            @apply p-2.5 mx-0 mb-3;
+        }
+        .header {
+            @apply p-2.5;
+        }
+        .header-title {
+            @apply text-base;
+        }
+        .search-box {
+            @apply w-48 h-7;
+        }
+        .stats-grid {
+            @apply grid-cols-2 gap-2;
+        }
+        .stat-card {
+            @apply p-2.5;
+        }
+        .stat-number {
+            @apply text-sm;
+        }
+        .activity-details h3 {
+            @apply text-[10px];
+        }
+        .activity-details p {
+            @apply text-[9px];
+        }
+        .customers-section {
+            @apply p-2;
+        }
+        .customers-header {
+            @apply gap-0.75 mb-1.5;
+        }
+        .customers-title {
+            @apply text-[11px];
+        }
+        .customers-grid {
+            @apply grid-cols-3 max-w-[200px] gap-1;
+        }
+        .customer-logo {
+            @apply h-10 w-10 p-0.5;
+        }
+        .custom-three-person-icon svg {
+            @apply w-6 h-6;
+        }
+        .calendar-header {
+            @apply p-2;
+        }
+        .calendar-body {
+            @apply p-2;
+        }
+        .calendar-title {
+            @apply text-xs;
+        }
+        .calendar-nav {
+            @apply w-5 h-5;
+        }
+        .calendar-weekday {
+            @apply py-1 text-[9px];
+        }
+        .calendar-day {
+            @apply h-6 text-[9px];
+        }
+    }
+
+    @media (max-width: 768px) {
+        .header-container {
+            @apply p-2 mx-0 mb-2;
+        }
+        .header {
+            @apply p-2;
+        }
+        .header-title {
+            @apply text-sm;
+        }
+        .search-box {
+            @apply w-44 h-7 p-1;
+        }
+        .dashboard-content {
+            @apply p-2 gap-2;
+        }
+        .stats-grid {
+            @apply grid-cols-1 gap-1.5;
+        }
+        .stat-card {
+            @apply p-2 flex items-center gap-2 text-left;
+        }
+        .stat-icon {
+            @apply m-0 w-6 h-6 text-sm;
+        }
+        .table-header {
+            @apply grid-cols-[50px_1fr_50px_60px] p-1 px-1.5 text-[8px];
+        }
+        .activity-item {
+            @apply grid-cols-[50px_1fr_50px_60px] p-1 px-1.5;
+        }
+        .activity-content {
+            @apply gap-1;
+        }
+        .activity-icon {
+            @apply w-4 h-4 text-[10px];
+        }
+        .activity-details h3 {
+            @apply text-[10px];
+        }
+        .activity-details p {
+            @apply text-[8px];
+        }
+        .status-badge {
+            @apply px-1 py-0.5 w-12 text-[7px];
+        }
+        .status-dot {
+            @apply w-0.75 h-0.75 rounded-full aspect-square;
+        }
+        .user-info {
+            @apply gap-0.5;
+        }
+        .user-avatar {
+            @apply w-3.5 h-3.5 text-[7px];
+        }
+        .user-name {
+            @apply text-[9px];
+        }
+        .no-results {
+            @apply p-6;
+        }
+        .no-results .material-symbols-outlined {
+            @apply text-2xl mb-1;
+        }
+        .no-results p {
+            @apply text-[10px];
+        }
+        .pagination {
+            @apply p-1 px-1.5;
+        }
+        .activity-count {
+            @apply text-[9px];
+        }
+        .page-btn {
+            @apply px-1 py-0.5 text-[8px] rounded-md;
+        }
+        .customers-section {
+            @apply p-2;
+        }
+        .customers-header {
+            @apply gap-0.5 mb-1;
+        }
+        .customers-title {
+            @apply text-[10px];
+        }
+        .customers-grid {
+            @apply grid-cols-3 gap-1 max-w-[180px];
+        }
+        .customer-logo {
+            @apply h-9 w-9 p-0.5;
+        }
+        .custom-three-person-icon svg {
+            @apply w-5 h-5;
+        }
+        .calendar-header {
+            @apply p-1.5;
+        }
+        .calendar-body {
+            @apply p-1.5;
+        }
+        .calendar-title {
+            @apply text-[10px];
+        }
+        .calendar-nav {
+            @apply w-5 h-5;
+        }
+        .calendar-weekdays {
+            @apply mb-1;
+        }
+        .calendar-weekday {
+            @apply py-0.5 text-[8px];
+        }
+        .calendar-day {
+            @apply h-5 text-[8px];
         }
     }
 </style>
