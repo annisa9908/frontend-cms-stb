@@ -322,7 +322,7 @@
         const savedLoginStatus: string | null = localStorage.getItem('isLoggedIn');
         console.log('localStorage:', { userName: savedUser, isLoggedIn: savedLoginStatus });
         console.log('store:', { userName: $userName, isLoggedIn: $isLoggedIn });
-        // Bypass autentikasi untuk debugging
+
         userName.set('admin');
         isLoggedIn.set(true);
         localStorage.setItem('userName', 'admin');
@@ -485,7 +485,7 @@
 
 <div class="app flex min-h-screen bg-[#ECF6F9]">
     <div class="main-content flex-1 p-0 w-full">
-        <!-- Fixed Header Section with Unified Background -->
+        
         <div class="header-container p-4 xl:p-5 mx-0 mb-5 w-full">
             <header class="header bg-white rounded-lg border-b border-gray-200 p-4 flex justify-between items-center xl:p-5 w-full">
                 <div class="header-left flex-1">
@@ -887,7 +887,7 @@
         @apply bg-white/30 border-white;
     }
 
-    /* Responsive breakpoints with adjusted spacing */
+    
     @media (max-width: 1440px) {
         .header-container {
             @apply p-4 mx-0 mb-4;

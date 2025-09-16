@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   
-  // Types
+  
   interface Service {
     id: number;
     image: string;
@@ -10,7 +10,7 @@
     imagePreview?: string | null;
   }
   
-  // State variables using Svelte 5 runes
+  
   let sectionTitle = $state('Our Services');
   let sectionDescription = $state('');
   let showAddServiceModal = $state(false);
@@ -19,13 +19,13 @@
   let deletingServiceId = $state<number | null>(null);
   let showSuccessModal = $state(false);
   
-  // New service form data
+  
   let newServiceName = $state('');
   let newServiceDescription = $state('');
   let newServiceImage = $state<HTMLInputElement | null>(null);
   let imagePreviewUrl = $state('');
   
-  // Services data
+  
   let services = $state<Service[]>([
     {
       id: 1,
@@ -91,7 +91,7 @@
     showSuccessModal = false;
   }
   
-  // Navigation function for settings button
+  
   function handleSettingsClick(): void {
     goto('/admin/dashboard-setting');
   }
@@ -101,14 +101,14 @@
     const file = target.files?.[0];
     
     if (file) {
-      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
+      
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('File size exceeds 5MB. Please select a smaller file.');
         return;
       }
 
-      // Validate file type
+      
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -134,7 +134,7 @@
     }
     
     if (editingService) {
-      // Update existing service
+      
       const index = services.findIndex(s => s.id === editingService!.id);
       if (index !== -1) {
         services[index] = {
@@ -145,7 +145,7 @@
         };
       }
     } else {
-      // Add new service
+     
       const newService: Service = {
         id: Date.now(),
         type: newServiceName,
@@ -213,14 +213,13 @@
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
-      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('File size exceeds 5MB. Please select a smaller file.');
         return;
       }
 
-      // Validate file type
+      
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -244,7 +243,7 @@
 
 <div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
   <div class="p-0 pb-4 flex flex-col gap-3">
-    <!-- Header Card -->
+   
     <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
       <div class="flex justify-between items-center">
         <div>
@@ -252,7 +251,6 @@
           <p class="text-white text-sm font-normal m-0">Manage services page content</p>
         </div>
         <div class="flex items-center gap-2">
-          <!-- Save Changes Button -->
           <button 
             on:click={saveChanges} 
             class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md"
@@ -262,7 +260,7 @@
             Save Changes
           </button>
           
-          <!-- Settings Button -->
+          
           <button 
             class="bg-transparent border-none p-1.5 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center" 
             type="button" 
@@ -274,7 +272,7 @@
       </div>
     </div>
 
-    <!-- Section Settings -->
+   
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Section Settings</h3>
       
@@ -301,7 +299,7 @@
       </div>
     </div>
 
-    <!-- Manage Services -->
+    
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <div class="flex justify-between items-center mb-3">
         <h3 class="text-base font-semibold text-gray-800">Manage Services</h3>
@@ -315,7 +313,7 @@
         </button>
       </div>
 
-      <!-- Services Table -->
+     
       <div class="border border-gray-200 rounded-md overflow-hidden">
         <div class="bg-[#2448B1] text-white grid grid-cols-[70px_1fr_1fr_100px] p-2.5 font-semibold text-xs">
           <div>Image</div>
@@ -355,10 +353,8 @@
     </div>
   </div>
 
-  <!-- Add/Edit Service Modal -->
+ 
   {#if showAddServiceModal}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-5 box-border" on:click={handleModalClick}>
       <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click={handleModalContentClick}>
         <div class="p-4 px-5 border-b border-gray-200 flex justify-between items-center">
@@ -397,8 +393,6 @@
           
           <div class="mb-0">
             <label for="service_image" class="block mb-1 font-semibold text-gray-700 text-xs">Services Image</label>
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div 
               class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer transition-all duration-200 relative hover:border-[#2448B1] hover:bg-slate-50" 
               on:click={handleImageAreaClick}
@@ -449,10 +443,9 @@
     </div>
   {/if}
 
-  <!-- Delete Confirmation Modal -->
+  
   {#if showDeleteModal}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
+   
     <div class="fixed inset-0 w-full h-full bg-black/60 flex items-center justify-center z-[1001] p-4" on:click={handleDeleteModalClick} role="button" tabindex="0" on:keydown={() => {}}>
       <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center">
         <button class="absolute top-3 right-3 text-gray-400 bg-none border-none cursor-pointer p-1.5 rounded hover:bg-gray-100 hover:text-gray-600" on:click={closeDeleteModal}>
@@ -471,10 +464,9 @@
     </div>
   {/if}
 
-  <!-- Success Notification Modal -->
+  
   {#if showSuccessModal}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick}>
       <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
         <div class="p-8 text-center relative">

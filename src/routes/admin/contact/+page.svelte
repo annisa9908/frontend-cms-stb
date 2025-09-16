@@ -5,7 +5,7 @@
 
   const dispatch = createEventDispatcher();
 
-  // Reactive variables for form data using Svelte stores
+  
   let phone = '';
   let headOffice = '';
   let developmentOffice = '';
@@ -14,24 +14,24 @@
   let showSaveNotification = false;
   let showValidationError = false;
 
-  // Logout modal states
+ 
   let showLogoutConfirm = false;
   let showLogoutSuccess = false;
 
-  // User data for logout modal
+  
   const userData = {
     name: 'Putri Mutiara',
     email: 'putrimutiara3010@gmail.com'
   };
 
-  // Reactive statement to check if all fields are filled
+ 
   $: allFieldsFilled = phone.trim() !== '' && 
                       headOffice.trim() !== '' && 
                       developmentOffice.trim() !== '' && 
                       websiteUrl.trim() !== '' && 
                       mapEmbed.trim() !== '';
 
-  // Save changes function with validation
+
   function saveChanges() {
     if (!allFieldsFilled) {
       showValidationError = true;
@@ -41,10 +41,10 @@
       return;
     }
     
-    // Simulate saving process
+   
     showSaveNotification = true;
     
-    // Hide notification after 3 seconds
+    
     setTimeout(() => {
       showSaveNotification = false;
     }, 3000);
@@ -58,41 +58,40 @@
     });
   }
 
-  // Navigation function for settings icon
+ 
   function navigateToSettings() {
     goto('/admin/dashboard-setting');
   }
 
-  // Logout handler - shows confirmation modal
+  
   function handleLogout() {
     showLogoutConfirm = true;
   }
 
-  // Confirm logout - proceed with logout
+  
   function confirmLogout() {
     showLogoutConfirm = false;
     showLogoutSuccess = true;
     console.log('Logging out...');
   }
 
-  // Cancel logout
+ 
   function cancelLogout() {
     showLogoutConfirm = false;
   }
 
-  // Login again - close success modal
+
   function loginAgain() {
     showLogoutSuccess = false;
-    // Here you would typically redirect to login page
     console.log('Redirecting to login...');
   }
 
-  // Close notification manually
+
   function closeNotification() {
     showSaveNotification = false;
   }
 
-  // Close validation error manually
+
   function closeValidationError() {
     showValidationError = false;
   }
@@ -117,7 +116,7 @@
     }
   }
 
-  // Toggle class to disable interaction on main content
+  
   $: isModalOpen = showSaveNotification || showValidationError || showLogoutConfirm || showLogoutSuccess;
 
   // Close modal with Escape key
@@ -136,10 +135,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 </svelte:head>
 
-<!-- Success Notification Modal -->
+
 {#if showSaveNotification}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick} on:keydown={handleKeyDown}>
     <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
       <div class="p-8 text-center relative">
@@ -160,10 +157,8 @@
   </div>
 {/if}
 
-<!-- Validation Error Modal -->
+
 {#if showValidationError}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div 
     class="fixed inset-0 bg-black/60 flex items-center justify-center z-[1001] p-5 box-border" 
     on:click={handleValidationModalClick} 
@@ -190,7 +185,7 @@
   </div>
 {/if}
 
-<!-- Logout Confirmation Modal -->
+
 {#if showLogoutConfirm}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
     <div class="bg-white rounded-xl p-6 text-center shadow-2xl max-w-sm w-[90%] border-2" style="border-color: #2448B1;">
@@ -233,7 +228,7 @@
   </div>
 {/if}
 
-<!-- Logout Success Modal -->
+
 {#if showLogoutSuccess}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
     <div class="bg-white rounded-xl p-8 text-center shadow-2xl max-w-sm w-[90%] border-2" style="border-color: #2448B1;">
@@ -254,7 +249,6 @@
 
 <div class="w-full min-h-screen bg-[#ECF6F9] font-inter text-slate-800 leading-relaxed">
   <div class="p-0 pb-4 flex flex-col gap-3">
-    <!-- Header Card -->
     <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
       <div class="flex justify-between items-center">
         <div>
@@ -262,7 +256,6 @@
           <p class="text-white text-sm font-normal m-0">Manage contact page content</p>
         </div>
         <div class="flex items-center gap-2">
-          <!-- Save Changes Button -->
           <button 
             on:click={saveChanges} 
             class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md"
@@ -272,7 +265,7 @@
             Save Changes
           </button>
           
-          <!-- Settings Button -->
+         
           <button 
             class="bg-transparent border-none p-1.5 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center" 
             type="button" 
@@ -284,9 +277,8 @@
       </div>
     </div>
 
-    <!-- Content Area -->
+
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
-      <!-- Phone Field -->
       <div class="mb-3 last:mb-0">
         <label for="phone" class="block mb-1 font-semibold text-gray-700 text-sm">Phone <span class="text-red-500 ml-0.5">*</span></label>
         <input 
@@ -301,7 +293,7 @@
         />
       </div>
       
-      <!-- Head Office Field -->
+      
       <div class="mb-3 last:mb-0">
         <label for="head_office" class="block mb-1 font-semibold text-gray-700 text-sm">Head Office <span class="text-red-500 ml-0.5">*</span></label>
         <input 
@@ -316,7 +308,7 @@
         />
       </div>
       
-      <!-- Development Office Field -->
+      
       <div class="mb-3 last:mb-0">
         <label for="development_office" class="block mb-1 font-semibold text-gray-700 text-sm">Development Office <span class="text-red-500 ml-0.5">*</span></label>
         <input 
@@ -331,7 +323,7 @@
         />
       </div>
       
-      <!-- Website URL Field -->
+      
       <div class="mb-3 last:mb-0">
         <label for="website_url" class="block mb-1 font-semibold text-gray-700 text-sm">Website URL <span class="text-red-500 ml-0.5">*</span></label>
         <input 
@@ -346,7 +338,7 @@
         />
       </div>
       
-      <!-- Map Embed Code Field -->
+      
       <div class="mb-0">
         <label for="map_embed" class="block mb-1 font-semibold text-gray-700 text-sm">Map Embed Code <span class="text-red-500 ml-0.5">*</span></label>
         <textarea 

@@ -1,46 +1,74 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import loginImage from '../../lib/assets/cms-stb-login.png';
- 
+
   let email = $state('');
   let password = $state('');
   let showPassword = $state(false);
   let rememberMe = $state(false);
   let isLoading = $state(false);
   let errorMessage = $state('');
+  let formKey = $state(Date.now()); 
+
   
+  onMount(() => {
+    email = '';
+    password = '';
+    showPassword = false;
+    rememberMe = false;
+    isLoading = false;
+    errorMessage = '';
+    formKey = Date.now(); 
+    console.log('Login page mounted, resetting state and formKey');
+    return () => {
+      console.log('Login page unmounted');
+    };
+  });
+
+  
+  onDestroy(() => {
+    email = '';
+    password = '';
+    showPassword = false;
+    rememberMe = false;
+    isLoading = false;
+    errorMessage = '';
+  });
+
   function togglePassword() {
     showPassword = !showPassword;
+    console.log('showPassword:', showPassword);
   }
-  
+
   async function handleSubmit() {
     isLoading = true;
     errorMessage = '';
-   
+
     if (!email || !password) {
       errorMessage = "Email dan password harus diisi";
       isLoading = false;
       return;
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       errorMessage = "Format email tidak valid";
       isLoading = false;
       return;
     }
-    
+
     await new Promise((resolve) => setTimeout(resolve, 1000));
-   
+
     const isAuthenticated = true;
     const loggedInUserName = email.split('@')[0];
-   
+
     if (isAuthenticated) {
-      await goto('/admin');
+      await goto('/admin', { replaceState: true });
     } else {
       errorMessage = "Email atau password salah";
     }
-   
+
     isLoading = false;
   }
 </script>
@@ -61,103 +89,108 @@
               Log in to start managing and updating your content.
             </p>
           </div>
-       
+
           {#if errorMessage}
             <div class="error-message bg-[#FEE2E2] text-[#DC2626] px-4 py-3 rounded-md mb-2 text-[13px] border border-[#FECACA] break-words">
               {errorMessage}
             </div>
           {/if}
-       
-          <form class="form-container flex flex-col mt-6" onsubmit={handleSubmit}>
-            <!-- Email -->
-            <div class="form-group mb-2">
-              <label for="email" class="block text-[#1E293B] font-medium mb-2 text-[14px]">Email</label>
-              <div class="form-input relative w-full">
-                <input
-                  type="email"
-                  id="email"
-                  bind:value={email}
-                  placeholder="Add email"
-                  required
-                  disabled={isLoading}
-                  class="w-full h-9 px-2 border border-[#CBD5E1] rounded-md text-[14px]
-                         bg-[#B2DBFF] text-[#1E293B]
-                         focus:outline-none focus:border-[#2448B1] focus:bg-white
-                         focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]
-                         disabled:opacity-60 placeholder:text-[#94A3B8]"
-                />
+
+          
+          {#key formKey}
+            <form class="form-container flex flex-col mt-6" on:submit|preventDefault={handleSubmit}>
+              <!-- Email -->
+              <div class="form-group mb-2">
+                <label for="email" class="block text-[#1E293B] font-medium mb-2 text-[14px]">Email</label>
+                <div class="form-input relative w-full">
+                  <input
+                    type="email"
+                    id="email"
+                    bind:value={email}
+                    placeholder="Add email"
+                    required
+                    disabled={isLoading}
+                    autocomplete="off"
+                    class="w-full h-9 px-2 border border-[#CBD5E1] rounded-md text-[14px]
+                           bg-[#B2DBFF] text-[#1E293B]
+                           focus:outline-none focus:border-[#2448B1] focus:bg-white
+                           focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]
+                           disabled:opacity-60 placeholder:text-[#94A3B8]"
+                  />
+                </div>
               </div>
-            </div>
-            <!-- Password -->
-            <div class="form-group mb-2">
-              <label for="password" class="block text-[#1E293B] font-medium mb-2 text-[14px]">Password</label>
-              <div class="form-input relative w-full">
+              <!-- Password -->
+              <div class="form-group mb-2">
+                <label for="password" class="block text-[#1E293B] font-medium mb-2 text-[14px]">Password</label>
+                <div class="form-input relative w-full h-9">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    bind:value={password}
+                    placeholder="Add password"
+                    required
+                    disabled={isLoading}
+                    autocomplete="off"
+                    class="w-full h-9 px-2 pr-12 border border-[#CBD5E1] rounded-md text-[14px]
+                           bg-[#B2DBFF] text-[#1E293B]
+                           focus:outline-none focus:border-[#2448B1] focus:bg-white
+                           focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]
+                           disabled:opacity-60 placeholder:text-[#94A3B8]"
+                  />
+                  <button
+                    type="button"
+                    class="password-toggle absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-[#94A3B8] border-none bg-transparent p-1 rounded transition-all duration-200 flex items-center justify-center hover:text-[#2448B1] hover:bg-[rgba(36,72,177,0.1)] disabled:opacity-60 disabled:cursor-not-allowed"
+                    on:click={togglePassword}
+                    disabled={isLoading}
+                  >
+                    {#if showPassword}
+                      <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
+                        <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
+                        <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.708zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
+                      </svg>
+                    {:else}
+                      <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                      </svg>
+                    {/if}
+                  </button>
+                </div>
+              </div>
+              <!-- Checkbox -->
+              <div class="checkbox-group flex items-center mb-3 gap-3">
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  bind:value={password}
-                  placeholder="Add password"
-                  required
-                  disabled={isLoading}
-                  class="w-full h-9 px-2 pr-12 border border-[#CBD5E1] rounded-md text-[14px]
-                         bg-[#B2DBFF] text-[#1E293B]
-                         focus:outline-none focus:border-[#2448B1] focus:bg-white
-                         focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]
-                         disabled:opacity-60 placeholder:text-[#94A3B8]"
+                  type="checkbox"
+                  id="remember"
+                  bind:checked={rememberMe}
+                  class="w-3 h-3 text-[#2448B1] bg-white border-2 border-[#B2DBFF] rounded focus:ring-[#2448B1] focus:ring-2 focus:ring-offset-0 cursor-pointer accent-[#2448B1]"
                 />
+                <label for="remember" class="text-[#475569] text-[14px] cursor-pointer select-none">Remember Me</label>
+              </div>
+              <!-- Submit Button -->
+              <div class="form-group mb-4">
                 <button
-                  type="button"
-                  class="password-toggle absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-[#94A3B8] border-none bg-none p-1 rounded transition-all duration-200 flex items-center justify-center hover:text-[#2448B1] hover:bg-[rgba(36,72,177,0.1)] disabled:opacity-60 disabled:cursor-not-allowed"
-                  onclick={togglePassword}
+                  type="submit"
+                  class="bg-[#2448B1] text-white font-semibold h-9 py-5 px-8 rounded-md w-full
+                         shadow-md hover:bg-[#1e3a8a] hover:shadow-lg
+                         transition-all duration-200 flex items-center justify-center
+                         disabled:opacity-60 disabled:cursor-not-allowed text-[15px]"
                   disabled={isLoading}
                 >
-                  {#if showPassword}
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
-                      <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
-                      <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.708zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
-                    </svg>
+                  {#if isLoading}
+                    <div class="loading-spinner w-5 h-5 border-2 border-t-white border-transparent rounded-full animate-spin mr-2"></div>
+                    Memproses...
                   {:else}
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-                      <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-                    </svg>
+                    Login
                   {/if}
                 </button>
               </div>
-            </div>
-            <!-- Checkbox -->
-            <div class="checkbox-group flex items-center mb-3 gap-3">
-              <input
-                type="checkbox"
-                id="remember"
-                bind:checked={rememberMe}
-                class="w-3 h-3 text-[#2448B1] bg-white border-2 border-[#B2DBFF] rounded focus:ring-[#2448B1] focus:ring-2 focus:ring-offset-0 cursor-pointer accent-[#2448B1]"
-              />
-              <label for="remember" class="text-[#475569] text-[14px] cursor-pointer select-none">Remember Me</label>
-            </div>
-            <!-- Submit Button -->
-            <div class="form-group mb-4">
-              <button
-                type="submit"
-                class="bg-[#2448B1] text-white font-semibold h-9 py-5 px-8 rounded-md w-full
-                       shadow-md hover:bg-[#1e3a8a] hover:shadow-lg
-                       transition-all duration-200 flex items-center justify-center
-                       disabled:opacity-60 disabled:cursor-not-allowed text-[15px]"
-                disabled={isLoading}
-              >
-                {#if isLoading}
-                  <div class="loading-spinner w-5 h-5 border-2 border-t-white border-transparent rounded-full animate-spin mr-2"></div>
-                  Memproses...
-                {:else}
-                  Login
-                {/if}
-              </button>
-            </div>
-          </form>
+            </form>
+          {/key}
         </div>
         <!-- Company Info -->
-        <div class="form-container text-[#94A3B8] text-[11px] font-medium text-center mt-4 mt-auto ">
+        <div class="form-container text-[#94A3B8] text-[11px] font-medium text-center mt-4 mt-auto">
           PT Solusi Tiga Bersama
         </div>
       </div>
@@ -206,7 +239,32 @@
   .checkbox-group {
     @apply mb-3;
   }
-  /* Custom checkbox styling to match design */
+ 
+  .form-input {
+    position: relative;
+    height: 36px;
+    min-height: 36px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  
+  .form-input .password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 1px;
+    line-height: 1;
+  }
+  .password-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+  
   input[type="checkbox"] {
     appearance: none;
     -webkit-appearance: none;
@@ -219,6 +277,10 @@
     background-size: 100% 100%;
     background-position: center;
     background-repeat: no-repeat;
+  }
+  .bg-ellipse-top-right,
+  .bg-ellipse-bottom-left {
+    will-change: transform, opacity;
   }
   @media (max-width: 1024px) {
     .login-container {
@@ -311,8 +373,8 @@
     .main-illustration:hover {
       @apply scale-100;
     }
-    button:hover:not(:disabled) {
-      @apply translate-y-0;
+    .form-input .password-toggle:hover:not(:disabled) {
+      @apply translate-y-[-50%];
     }
   }
   @media (prefers-contrast: high) {

@@ -1,14 +1,14 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
 
-  // Types
+
   interface Product {
     id: number;
     name: string;
     image: string | null;
   }
 
-  // Reactive states using runes
+  
   let products = $state<Product[]>([
     { id: 1, name: 'TACTICAL CHAT', image: null },
     { id: 2, name: 'E - OFFICE', image: null }
@@ -17,14 +17,14 @@
   let sectionTitle = $state<string>('');
   let sectionDescription = $state<string>('');
 
-  // Modal states
+ 
   let showAddModal = $state<boolean>(false);
   let showEditModal = $state<boolean>(false);
   let showDeleteModal = $state<boolean>(false);
   let showSuccessModal = $state<boolean>(false);
   let showErrorModal = $state<boolean>(false);
 
-  // Form data
+  
   let productName = $state<string>('');
   let editProductName = $state<string>('');
   let currentEditId = $state<number | null>(null);
@@ -32,26 +32,25 @@
   let currentImage = $state<string | null>(null);
   let editCurrentImage = $state<string | null>(null);
 
-  // Navigation to profile settings
+ 
   function goToProfileSettings(): void {
     goto('/admin/dashboard-setting');
   }
 
-  // Image handling functions
+  
   function handleImageUpload(event: Event, isEdit: boolean = false): void {
     const target = event.target as HTMLInputElement;
     const files = target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    // Validate file size (5MB = 5 * 1024 * 1024 bytes)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       alert('File size exceeds 5MB. Please select a smaller file.');
       return;
     }
 
-    // Validate file type
+   
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
     if (!allowedTypes.includes(file.type)) {
       alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -93,14 +92,12 @@
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
-      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('File size exceeds 5MB. Please select a smaller file.');
         return;
       }
 
-      // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -129,7 +126,7 @@
     }
   }
 
-  // Functions
+
   function saveChanges(): void {
     console.log('Saving changes...');
     showSuccessModal = true;
@@ -218,7 +215,7 @@
     showSuccessModal = true;
   }
 
-  // Event handlers for modal
+
   function handleModalContentClick(event: MouseEvent): void {
     event.stopPropagation();
   }
@@ -228,7 +225,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 </svelte:head>
 
-<!-- Success Modal -->
+
 {#if showSuccessModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true">
     <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative" on:click|stopPropagation>
@@ -251,7 +248,7 @@
   </div>
 {/if}
 
-<!-- Error Modal -->
+
 {#if showErrorModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true">
     <div class="bg-white rounded-xl p-5 text-center shadow-2xl w-80 max-w-[90%]" on:click|stopPropagation>
@@ -274,7 +271,6 @@
 
 <div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
   <div class="p-0 pb-4 flex flex-col gap-3">
-    <!-- Header -->
     <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
       <div class="flex justify-between items-center">
         <div>
@@ -303,7 +299,7 @@
       </div>
     </div>
 
-    <!-- Section Settings -->
+  
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Section Settings</h3>
       
@@ -330,7 +326,7 @@
       </div>
     </div>
 
-    <!-- Manage Products -->
+    
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <div class="flex justify-between items-center mb-3">
         <h3 class="text-base font-semibold text-gray-800">Manage Products</h3>
@@ -345,7 +341,7 @@
         </button>
       </div>
 
-      <!-- Products Grid -->
+    
       <div class="border border-gray-200 rounded-md overflow-hidden">
         <div class="bg-[#2448B1] text-white grid grid-cols-[70px_1fr_100px] p-2.5 font-semibold text-xs">
           <div>Image</div>
@@ -392,7 +388,7 @@
   </div>
 </div>
 
-<!-- Add Modal -->
+
 {#if showAddModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true" on:click|stopPropagation={closeAddModal}>
     <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click|stopPropagation>
@@ -470,7 +466,7 @@
   </div>
 {/if}
 
-<!-- Edit Modal -->
+
 {#if showEditModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true" on:click|stopPropagation={closeEditModal}>
     <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click|stopPropagation>
@@ -548,7 +544,7 @@
   </div>
 {/if}
 
-<!-- Delete Modal -->
+
 {#if showDeleteModal}
   <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[1001] p-4" role="dialog" aria-modal="true" on:click|stopPropagation={closeDeleteModal}>
     <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center" on:click|stopPropagation>
@@ -586,7 +582,7 @@
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
   }
 
-  /* Modal Overlay */
+ 
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -603,7 +599,7 @@
     padding: 12px;
   }
 
-  /* Custom scrollbar untuk modal */
+
   :global(.overflow-y-auto::-webkit-scrollbar) {
     width: 4px;
   }
@@ -622,12 +618,12 @@
     background: #94a3b8;
   }
 
-  /* Cursor styles for buttons */
+  
   :global(button) {
     cursor: pointer;
   }
 
-  /* Focus styles untuk accessibility */
+  
   :global(button:focus-visible) {
     outline: 2px solid #2448B1;
     outline-offset: 2px;
@@ -639,14 +635,14 @@
     outline-offset: 2px;
   }
 
-  /* Responsive fine-tuning */
+
   @media (max-width: 640px) {
     .btn-text-mobile-hidden {
       display: none;
     }
   }
 
-  /* Touch optimization */
+ 
   @media (pointer: coarse) {
     :global(button) {
       min-height: 40px;
@@ -659,7 +655,7 @@
     }
   }
 
-  /* High contrast support */
+ 
   @media (prefers-contrast: high) {
     :global(input),
     :global(textarea) {

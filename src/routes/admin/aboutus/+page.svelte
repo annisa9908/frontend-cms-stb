@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
 
-  // Definisi tipe untuk customer
+  
   interface Customer {
     id: string;
     name: string;
@@ -10,7 +10,7 @@
     imagePreview: string | null;
   }
 
-  // Variable state 
+
   let title = $state('');
   let description = $state('');
   let customers = $state<Customer[]>([]);
@@ -20,47 +20,46 @@
   let customerToDelete = $state('');
   let newCustomer = $state<Customer>({ id: '', name: '', image: null, imagePreview: null });
 
-  // Fungsi untuk navigasi ke dashboard setting
+  
   function goToDashboardSetting() {
     goto('/admin/dashboard-setting');
   }
 
-  // Generate id unik untuk customer
+ 
   function generateUniqueId(): string {
     return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
   }
 
-  // Simpan perubahan konten utama
   function saveChanges() {
-    showSuccessModal = true; // Notifikasi sukses langsung muncul
+    showSuccessModal = true; 
     console.log('Saved data:', { title, description, customers });
-    setTimeout(() => (showSuccessModal = false), 3000); // Auto-close after 3 seconds
+    setTimeout(() => (showSuccessModal = false), 3000); 
   }
 
-  // Show Add Customer Modal
+  
   function openAddCustomerModal() {
     newCustomer = { id: generateUniqueId(), name: `Customer ${customers.length + 1}`, image: null, imagePreview: null };
     showAddCustomerModal = true;
   }
 
-  // Close Add Customer Modal
+
   function closeAddCustomerModal() {
     showAddCustomerModal = false;
     newCustomer = { id: '', name: '', image: null, imagePreview: null };
   }
 
-  // Close Success Modal
+  
   function closeSuccessModal() {
     showSuccessModal = false;
   }
 
-  // Close Delete Modal
+  
   function closeDeleteModal() {
     showDeleteModal = false;
     customerToDelete = '';
   }
 
-  // Save new customer
+ 
   function saveNewCustomer() {
     if (!newCustomer.image) {
       alert('Please upload a customer image.');
@@ -71,21 +70,20 @@
     closeAddCustomerModal();
   }
 
-  // Handle customer image upload for new customer
+ 
   function handleImageUpload(event: Event) {
     const target = event.target as HTMLInputElement;
     const files = target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    // Validate file size (5MB = 5 * 1024 * 1024 bytes)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       alert('File size exceeds 5MB. Please select a smaller file.');
       return;
     }
 
-    // Validate file type
+    
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
     if (!allowedTypes.includes(file.type)) {
       alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -102,7 +100,7 @@
     reader.readAsDataURL(file);
   }
 
-  // Handle file input click
+ 
   function handleFileInputClick(customerId: string = 'new-customer') {
     if (typeof document !== 'undefined') {
       const fileInput = document.getElementById(`file-${customerId}`) as HTMLInputElement | null;
@@ -112,40 +110,38 @@
     }
   }
 
-  // Remove customer with confirmation modal
   function removeCustomer(id: string) {
     customerToDelete = id;
     showDeleteModal = true;
   }
 
-  // Confirm delete customer
+  
   function confirmDeleteCustomer() {
     customers = customers.filter((customer) => customer.id !== customerToDelete);
     closeDeleteModal();
   }
 
-  // Update customer name
+  
   function updateCustomerName(id: string, name: string) {
     customers = customers.map((customer) =>
       customer.id === id ? { ...customer, name } : customer
     );
   }
 
-  // Handle customer image upload for existing customers
+  
   function handleImageUploadForCustomer(event: Event, customerId: string) {
     const target = event.target as HTMLInputElement;
     const files = target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    // Validate file size (5MB = 5 * 1024 * 1024 bytes)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       alert('File size exceeds 5MB. Please select a smaller file.');
       return;
     }
 
-    // Validate file type
+ 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
     if (!allowedTypes.includes(file.type)) {
       alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -207,14 +203,13 @@
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
-      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('File size exceeds 5MB. Please select a smaller file.');
         return;
       }
 
-      // Validate file type
+     
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -257,7 +252,6 @@
 
 <div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
   <div class="p-0 pb-4 flex flex-col gap-3">
-    <!-- Page Header Card -->
     <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
       <div class="flex justify-between items-center">
         <div>
@@ -285,7 +279,7 @@
       </div>
     </div>
 
-    <!-- Content Editor Card -->
+  
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Content Editor</h3>
       
@@ -312,7 +306,7 @@
       </div>
     </div>
 
-    <!-- Customer Editor Card -->
+    
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Customer Editor</h3>
       
@@ -327,7 +321,7 @@
       
       <div class="customer-content">
         {#if customers.length === 0}
-          <!-- Empty state removed - show nothing when no customers -->
+         
         {:else}
           <div class="customer-grid grid gap-4 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
             {#each customers as customer (customer.id)}
@@ -386,7 +380,7 @@
     </div>
   </div>
 
-  <!-- Add Customer Modal -->
+
   {#if showAddCustomerModal}
     <div class="modal-overlay fixed inset-0 bg-black/60 flex items-center justify-center z-[2000] p-4" on:click={handleModalClick} role="button" tabindex="0" on:keydown={() => {}}>
       <div class="modal-content bg-white rounded-[10px] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] max-w-[450px] w-full max-h-[90vh] overflow-y-auto">
@@ -445,7 +439,7 @@
     </div>
   {/if}
 
-  <!-- Success Notification Modal -->
+  
   {#if showSuccessModal}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick}>
       <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
@@ -467,7 +461,7 @@
     </div>
   {/if}
 
-  <!-- Delete Confirmation Modal -->
+ 
   {#if showDeleteModal}
     <div class="fixed inset-0 w-full h-full bg-black/60 flex items-center justify-center z-[1001]" on:click={handleDeleteModalClick} role="button" tabindex="0" on:keydown={() => {}}>
       <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center">
@@ -509,14 +503,14 @@
     touch-action: manipulation;
   }
 
-  /* Desktop/Laptop optimizations */
+ 
   @media (min-width: 1024px) {
     .service-content {
       @apply p-6;
     }
   }
 
-  /* Smaller laptop screens */
+ 
   @media (max-width: 1366px) {
     .page-info h1 {
       @apply text-[18px];
@@ -527,7 +521,7 @@
     }
   }
 
-  /* Tablet adjustments */
+
   @media (max-width: 768px) {
     .service-content {
       @apply p-4;
@@ -558,7 +552,7 @@
     }
   }
 
-  /* Mobile adjustments */
+  
   @media (max-width: 480px) {
     .service-content {
       @apply p-3;

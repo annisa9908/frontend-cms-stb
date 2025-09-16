@@ -2,49 +2,47 @@
   import { createEventDispatcher } from 'svelte';
   import { goto } from '$app/navigation';
   
-  // Define dispatcher with typed events
+  
   const dispatch = createEventDispatcher<{
     save: { title: string; description: string };
     logoUpdate: { url: string };
     imageUpdate: { url: string };
   }>();
 
-  // Reactive state using runes
+ 
   let deleteType = $state<'logo' | 'image' | ''>('');
   let showEditCompanyLogoModal = $state(false);
   let showEditImageModal = $state(false);
   let showSuccessModal = $state(false);
   let showDeleteModal = $state(false);
   
-  // File input references
+
   let logoFile = $state<HTMLInputElement | null>(null);
   let imageFile = $state<HTMLInputElement | null>(null);
   
-  // Current saved URLs (what's displayed in the main interface)
+  
   let currentLogoUrl = $state('');
   let currentImageUrl = $state('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E');
   
-  // Temporary preview URLs (what's shown in modal before saving)
+
   let tempLogoPreviewUrl = $state('');
   let tempImagePreviewUrl = $state('');
   
-  // Form data
+
   let title = $state('');
   let description = $state('');
   
-  // Validation states for buttons
+
   let isLogoSaveDisabled = $state(true);
   let isImageSaveDisabled = $state(true);
   let isLogoDeleteDisabled = $state(true);
   let isImageDeleteDisabled = $state(true);
 
-  // Update button states based on image URLs
+  
   $effect(() => {
-    // Validate Save buttons
+   
     isLogoSaveDisabled = !tempLogoPreviewUrl;
     isImageSaveDisabled = !tempImagePreviewUrl || tempImagePreviewUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
-    
-    // Validate Delete buttons in main interface
     isLogoDeleteDisabled = !currentLogoUrl;
     isImageDeleteDisabled = currentImageUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
   });
@@ -91,14 +89,13 @@
     const file = target.files?.[0];
     
     if (file) {
-      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('File size exceeds 5MB. Please select a smaller file.');
         return;
       }
 
-      // Validate file type
+    
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -203,14 +200,13 @@
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
-      // Validate file size (5MB = 5 * 1024 * 1024 bytes)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('File size exceeds 5MB. Please select a smaller file.');
         return;
       }
 
-      // Validate file type
+    
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -238,7 +234,6 @@
 
 <div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
   <div class="p-0 pb-4 flex flex-col gap-3">
-    <!-- Header Card -->
     <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
       <div class="flex justify-between items-center">
         <div>
@@ -265,7 +260,7 @@
       </div>
     </div>
 
-    <!-- Form Card -->
+   
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Home Settings</h3>
       <div class="mb-3 last:mb-0">
@@ -336,10 +331,8 @@
   </div>
 </div>
 
-<!-- Edit Company Logo Modal -->
+
 {#if showEditCompanyLogoModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="fixed top-0 left-0 w-full h-full bg-black/50 flex items-center justify-center z-[1000] p-5 box-border" on:click={handleModalClick}>
     <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click={handleModalContentClick}>
       <div class="p-4 px-5 border-b border-gray-200 flex justify-between items-center">
@@ -349,8 +342,6 @@
         </button>
       </div>
       <div class="p-4 px-5">
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
           class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer transition-all duration-200 relative hover:border-[#2448B1] hover:bg-slate-50" 
           on:click={() => logoFile?.click()}
@@ -393,10 +384,9 @@
   </div>
 {/if}
 
-<!-- Edit Image Modal -->
+
 {#if showEditImageModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  
   <div class="fixed top-0 left-0 w-full h-full bg-black/50 flex items-center justify-center z-[1000] p-5 box-border" on:click={handleModalClick}>
     <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click={handleModalContentClick}>
       <div class="p-4 px-5 border-b border-gray-200 flex justify-between items-center">
@@ -406,8 +396,6 @@
         </button>
       </div>
       <div class="p-4 px-5">
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
           class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer transition-all duration-200 relative hover:border-[#2448B1] hover:bg-slate-50" 
           on:click={() => imageFile?.click()}
@@ -450,10 +438,8 @@
   </div>
 {/if}
 
-<!-- Success Notification Modal -->
+
 {#if showSuccessModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick}>
     <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
       <div class="p-8 text-center relative">
@@ -474,10 +460,8 @@
   </div>
 {/if}
 
-<!-- Delete Confirmation Modal -->
+
 {#if showDeleteModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="fixed inset-0 w-full h-full bg-black/60 flex items-center justify-center z-[1001] p-4" on:click={handleDeleteModalClick} role="button" tabindex="0" on:keydown={() => {}}>
     <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center">
       <button class="absolute top-3 right-3 text-gray-400 bg-none border-none cursor-pointer p-1.5 rounded hover:bg-gray-100 hover:text-gray-600" on:click={closeDeleteModal}>

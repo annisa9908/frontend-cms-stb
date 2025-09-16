@@ -2,7 +2,7 @@
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     
-    // State variables using Svelte 5 runes
+    
     let fullName = $state('');
     let email = $state('');
     let password = $state('');
@@ -494,7 +494,6 @@
         }
     }
 
-    /* Custom styles for error states and save button shine effect */
     .form-group.error .form-control {
         @apply border-red-500 bg-red-50;
     }
