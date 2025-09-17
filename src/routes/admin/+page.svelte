@@ -319,7 +319,6 @@
     function checkAuthentication(): boolean {
         console.log('Checking authentication...');
         const savedUser: string | null = localStorage.getItem('userName');
-        localStorage.setItem("accessToken", "blababala")
         const savedLoginStatus: string | null = localStorage.getItem('isLoggedIn');
         console.log('localStorage:', { userName: savedUser, isLoggedIn: savedLoginStatus });
         console.log('store:', { userName: $userName, isLoggedIn: $isLoggedIn });
