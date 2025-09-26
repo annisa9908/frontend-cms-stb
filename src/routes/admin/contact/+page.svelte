@@ -5,7 +5,6 @@
 
   const dispatch = createEventDispatcher();
 
-  
   let phone = '';
   let headOffice = '';
   let developmentOffice = '';
@@ -13,84 +12,151 @@
   let mapEmbed = '';
   let showSaveNotification = false;
   let showValidationError = false;
-
- 
   let showLogoutConfirm = false;
   let showLogoutSuccess = false;
+  let isLoading = false;
+  let isSaving = false;
+  /** @type {number|null}*/
+  let contactId = null; // Store the contact ID for updating
 
-  
+  onMount(async () => {
+    await loadContactData();
+  });
+
+  async function loadContactData() {
+  try {
+    isLoading = true;
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      console.error('No access token found');
+      return;
+    }
+
+    const response = await fetch("http://localhost:1337/api/contact?populate=*", {
+    headers: {
+    "Authorization": "Bearer " + token,
+    "Content-Type": "application/json"
+  }
+});
+
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const body = await response.json();
+    console.log('Contact Response:', body);
+
+    phone = body.data?.phone || '';
+    headOffice = body.data?.head_office || '';
+    developmentOffice = body.data?.development_office || '';
+    websiteUrl = body.data?.website_url || '';
+    mapEmbed = body.data?.map_embed_code || '';
+
+  } catch (error) {
+    console.error('Error loading contact data:', error);
+  } finally {
+    isLoading = false;
+  }
+}
+
+
   const userData = {
     name: 'Putri Mutiara',
     email: 'putrimutiara3010@gmail.com'
   };
 
- 
   $: allFieldsFilled = phone.trim() !== '' && 
                       headOffice.trim() !== '' && 
                       developmentOffice.trim() !== '' && 
                       websiteUrl.trim() !== '' && 
                       mapEmbed.trim() !== '';
 
-
-  function saveChanges() {
-    if (!allFieldsFilled) {
-      showValidationError = true;
-      setTimeout(() => {
-        showValidationError = false;
-      }, 4000);
+  async function saveChanges() {
+  if (!allFieldsFilled) {
+    showValidationError = true;
+    setTimeout(() => (showValidationError = false), 4000);
+    return;
+  }
+  
+  try {
+    isSaving = true;
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      console.error('No access token found');
       return;
     }
-    
-   
-    showSaveNotification = true;
-    
-    
-    setTimeout(() => {
-      showSaveNotification = false;
-    }, 3000);
-    
-    console.log('Saving contact data:', {
-      phone,
-      headOffice,
-      developmentOffice,
-      websiteUrl,
-      mapEmbed
+
+    const updateData = {
+      data: {
+        phone: phone.trim(),
+        head_office: headOffice.trim(),
+        development_office: developmentOffice.trim(),
+        website_url: websiteUrl.trim(),
+        map_embed_code: mapEmbed.trim()
+      }
+    };
+
+    const response = await fetch("http://localhost:1337/api/contact", {
+      method: 'PUT', // single type update
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(updateData)
     });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      console.error("Error details:", errorBody);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Save successful:', result);
+
+    // refresh state form dari response baru
+    await loadContactData();
+
+    showSaveNotification = true;
+    setTimeout(() => (showSaveNotification = false), 3000);
+
+  } catch (error) {
+    console.error('Error saving contact data:', error);
+    alert('Error saving data. Please try again.');
+  } finally {
+    isSaving = false;
   }
+}
+
 
  
   function navigateToSettings() {
     goto('/admin/dashboard-setting');
   }
 
-  
   function handleLogout() {
     showLogoutConfirm = true;
   }
-
   
   function confirmLogout() {
     showLogoutConfirm = false;
     showLogoutSuccess = true;
     console.log('Logging out...');
   }
-
  
   function cancelLogout() {
     showLogoutConfirm = false;
   }
-
 
   function loginAgain() {
     showLogoutSuccess = false;
     console.log('Redirecting to login...');
   }
 
-
   function closeNotification() {
     showSaveNotification = false;
   }
-
 
   function closeValidationError() {
     showValidationError = false;
@@ -116,7 +182,6 @@
     }
   }
 
-  
   $: isModalOpen = showSaveNotification || showValidationError || showLogoutConfirm || showLogoutSuccess;
 
   // Close modal with Escape key
@@ -134,7 +199,6 @@
 <svelte:head>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 </svelte:head>
-
 
 {#if showSaveNotification}
   <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick} on:keydown={handleKeyDown}>
@@ -156,7 +220,6 @@
     </div>
   </div>
 {/if}
-
 
 {#if showValidationError}
   <div 
@@ -184,7 +247,6 @@
     </div>
   </div>
 {/if}
-
 
 {#if showLogoutConfirm}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -228,7 +290,6 @@
   </div>
 {/if}
 
-
 {#if showLogoutSuccess}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
     <div class="bg-white rounded-xl p-8 text-center shadow-2xl max-w-sm w-[90%] border-2" style="border-color: #2448B1;">
@@ -248,129 +309,140 @@
 {/if}
 
 <div class="w-full min-h-screen bg-[#ECF6F9] font-inter text-slate-800 leading-relaxed">
-  <div class="p-0 pb-4 flex flex-col gap-3">
-    <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-white text-xl font-bold mb-0.5 leading-tight">Contact Management</h1>
-          <p class="text-white text-sm font-normal m-0">Manage contact page content</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button 
-            on:click={saveChanges} 
-            class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md"
-            type="button"
-          >
-            <span class="material-symbols-outlined text-base">save</span>
-            Save Changes
-          </button>
+  {#if isLoading}
+    <div class="flex justify-center items-center min-h-screen">
+      <div class="text-center">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#2448B1]"></div>
+        <p class="mt-2 text-sm text-gray-600">Loading contact data...</p>
+      </div>
+    </div>
+  {:else}
+    <div class="p-0 pb-4 flex flex-col gap-3">
+      <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 class="text-white text-xl font-bold mb-0.5 leading-tight">Contact Management</h1>
+            <p class="text-white text-sm font-normal m-0">Manage contact page content</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button 
+              on:click={saveChanges} 
+              disabled={isSaving}
+              class="bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md"
+              type="button"
+            >
+              {#if isSaving}
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Saving...
+              {:else}
+                <span class="material-symbols-outlined text-base">save</span>
+                Save Changes
+              {/if}
+            </button>
           
-         
-          <button 
-            class="bg-transparent border-none p-1.5 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center" 
-            type="button" 
-            on:click={navigateToSettings}
-          >
-            <span class="material-symbols-outlined text-base text-white cursor-pointer">settings</span>
-          </button>
+            <button 
+              class="bg-transparent border-none p-1.5 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center" 
+              type="button" 
+              on:click={navigateToSettings}
+            >
+              <span class="material-symbols-outlined text-base text-white cursor-pointer">settings</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
+        <div class="mb-3 last:mb-0">
+          <label for="phone" class="block mb-1 font-semibold text-gray-700 text-sm">Phone <span class="text-red-500 ml-0.5">*</span></label>
+          <input 
+            type="text" 
+            id="phone" 
+            bind:value={phone}
+            placeholder="Add number phone"
+            disabled={isSaving}
+            class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)] disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class:border-red-500={showValidationError && phone.trim() === ''}
+            class:ring-2={showValidationError && phone.trim() === ''}
+            class:ring-red-100={showValidationError && phone.trim() === ''}
+          />
+        </div>
+        
+        <div class="mb-3 last:mb-0">
+          <label for="head_office" class="block mb-1 font-semibold text-gray-700 text-sm">Head Office <span class="text-red-500 ml-0.5">*</span></label>
+          <input 
+            type="text" 
+            id="head_office" 
+            bind:value={headOffice}
+            placeholder="Add head office"
+            disabled={isSaving}
+            class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)] disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class:border-red-500={showValidationError && headOffice.trim() === ''}
+            class:ring-2={showValidationError && headOffice.trim() === ''}
+            class:ring-red-100={showValidationError && headOffice.trim() === ''}
+          />
+        </div>
+        
+        <div class="mb-3 last:mb-0">
+          <label for="development_office" class="block mb-1 font-semibold text-gray-700 text-sm">Development Office <span class="text-red-500 ml-0.5">*</span></label>
+          <input 
+            type="text" 
+            id="development_office" 
+            bind:value={developmentOffice}
+            placeholder="Add development office"
+            disabled={isSaving}
+            class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)] disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class:border-red-500={showValidationError && developmentOffice.trim() === ''}
+            class:ring-2={showValidationError && developmentOffice.trim() === ''}
+            class:ring-red-100={showValidationError && developmentOffice.trim() === ''}
+          />
+        </div>
+        
+        <div class="mb-3 last:mb-0">
+          <label for="website_url" class="block mb-1 font-semibold text-gray-700 text-sm">Website URL <span class="text-red-500 ml-0.5">*</span></label>
+          <input 
+            type="url" 
+            id="website_url" 
+            bind:value={websiteUrl}
+            placeholder="Add website URL"
+            disabled={isSaving}
+            class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)] disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class:border-red-500={showValidationError && websiteUrl.trim() === ''}
+            class:ring-2={showValidationError && websiteUrl.trim() === ''}
+            class:ring-red-100={showValidationError && websiteUrl.trim() === ''}
+          />
+        </div>
+        
+        <div class="mb-0">
+          <label for="map_embed" class="block mb-1 font-semibold text-gray-700 text-sm">Map Embed Code <span class="text-red-500 ml-0.5">*</span></label>
+          <textarea 
+            id="map_embed" 
+            bind:value={mapEmbed}
+            placeholder="Paste Google Maps embed code here...."
+            rows="4"
+            disabled={isSaving}
+            class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 resize-y min-h-[80px] focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)] disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class:border-red-500={showValidationError && mapEmbed.trim() === ''}
+            class:ring-2={showValidationError && mapEmbed.trim() === ''}
+            class:ring-red-100={showValidationError && mapEmbed.trim() === ''}
+          ></textarea>
         </div>
       </div>
     </div>
-
-
-    <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
-      <div class="mb-3 last:mb-0">
-        <label for="phone" class="block mb-1 font-semibold text-gray-700 text-sm">Phone <span class="text-red-500 ml-0.5">*</span></label>
-        <input 
-          type="text" 
-          id="phone" 
-          bind:value={phone}
-          placeholder="Add number phone"
-          class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
-          class:border-red-500={showValidationError && phone.trim() === ''}
-          class:ring-2={showValidationError && phone.trim() === ''}
-          class:ring-red-100={showValidationError && phone.trim() === ''}
-        />
-      </div>
-      
-      
-      <div class="mb-3 last:mb-0">
-        <label for="head_office" class="block mb-1 font-semibold text-gray-700 text-sm">Head Office <span class="text-red-500 ml-0.5">*</span></label>
-        <input 
-          type="text" 
-          id="head_office" 
-          bind:value={headOffice}
-          placeholder="Add head office"
-          class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
-          class:border-red-500={showValidationError && headOffice.trim() === ''}
-          class:ring-2={showValidationError && headOffice.trim() === ''}
-          class:ring-red-100={showValidationError && headOffice.trim() === ''}
-        />
-      </div>
-      
-      
-      <div class="mb-3 last:mb-0">
-        <label for="development_office" class="block mb-1 font-semibold text-gray-700 text-sm">Development Office <span class="text-red-500 ml-0.5">*</span></label>
-        <input 
-          type="text" 
-          id="development_office" 
-          bind:value={developmentOffice}
-          placeholder="Add development office"
-          class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
-          class:border-red-500={showValidationError && developmentOffice.trim() === ''}
-          class:ring-2={showValidationError && developmentOffice.trim() === ''}
-          class:ring-red-100={showValidationError && developmentOffice.trim() === ''}
-        />
-      </div>
-      
-      
-      <div class="mb-3 last:mb-0">
-        <label for="website_url" class="block mb-1 font-semibold text-gray-700 text-sm">Website URL <span class="text-red-500 ml-0.5">*</span></label>
-        <input 
-          type="url" 
-          id="website_url" 
-          bind:value={websiteUrl}
-          placeholder="Add website URL"
-          class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
-          class:border-red-500={showValidationError && websiteUrl.trim() === ''}
-          class:ring-2={showValidationError && websiteUrl.trim() === ''}
-          class:ring-red-100={showValidationError && websiteUrl.trim() === ''}
-        />
-      </div>
-      
-      
-      <div class="mb-0">
-        <label for="map_embed" class="block mb-1 font-semibold text-gray-700 text-sm">Map Embed Code <span class="text-red-500 ml-0.5">*</span></label>
-        <textarea 
-          id="map_embed" 
-          bind:value={mapEmbed}
-          placeholder="Paste Google Maps embed code here...."
-          rows="4"
-          class="w-full py-2.5 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white transition-all duration-200 font-inter placeholder-gray-400 resize-y min-h-[80px] focus:outline-none focus:border-[#2448B1] focus:shadow-[0_0_0_3px_rgba(36,72,177,0.1)]"
-          class:border-red-500={showValidationError && mapEmbed.trim() === ''}
-          class:ring-2={showValidationError && mapEmbed.trim() === ''}
-          class:ring-red-100={showValidationError && mapEmbed.trim() === ''}
-        ></textarea>
-      </div>
-    </div>
-  </div>
+  {/if}
 </div>
 
-<style>
+<style lang="postcss">
   @reference "tailwindcss";
   :global(.material-symbols-outlined) {
     font-family: 'Material Symbols Outlined';
     font-size: 16px;
   }
-
   .modal-open {
     pointer-events: none;
   }
-
   .modal-open > .flex-1 {
     pointer-events: none;
   }
-
   :global(.modal-open ~ .sidebar) {
     pointer-events: none;
   }

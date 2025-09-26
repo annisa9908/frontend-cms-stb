@@ -7,13 +7,11 @@
   
   export const sidebarOpen = writable<boolean>(true);
   
-  
   $: sidebarIsOpen = $sidebarOpen;
   $: currentPath = $page.url.pathname;
   let forceUpdate = 0; 
   let displayName = '';
   let displayEmail = '';
-  
   
   onMount(() => {
     if (typeof window !== 'undefined') {
@@ -21,7 +19,6 @@
       const initialState = savedState !== null ? savedState === 'true' : true;
       sidebarOpen.set(initialState);
       console.log('Initial sidebar state:', initialState);
-
       
       const savedUser = localStorage.getItem('userName');
       const savedEmail = localStorage.getItem('userEmail');
@@ -36,13 +33,11 @@
     console.log('Before navigate - current path:', $page.url.pathname);
   });
 
- 
   afterNavigate(async () => {
     console.log('After navigate - new path:', $page.url.pathname);
     await tick();
     forceUpdate++;
   });
-
   
   $: {
     if ($page?.url?.pathname) {
@@ -55,7 +50,7 @@
   
   sidebarOpen.subscribe(value => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebarOpen', value.toString());
+      localStorage.setItem('sidebar Open', value.toString());
       console.log('Sidebar state saved:', value);
     }
   });

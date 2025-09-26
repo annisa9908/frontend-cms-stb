@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  
+  import { onMount } from 'svelte';
   
   interface Service {
     id: number;
@@ -9,9 +9,8 @@
     description: string;
     imagePreview?: string | null;
   }
-  
-  
-  let sectionTitle = $state('Our Services');
+
+  let sectionTitle = $state('');
   let sectionDescription = $state('');
   let showAddServiceModal = $state(false);
   let showDeleteModal = $state(false);
@@ -19,30 +18,162 @@
   let deletingServiceId = $state<number | null>(null);
   let showSuccessModal = $state(false);
   
-  
   let newServiceName = $state('');
   let newServiceDescription = $state('');
   let newServiceImage = $state<HTMLInputElement | null>(null);
   let imagePreviewUrl = $state('');
   
-  
-  let services = $state<Service[]>([
-    {
-      id: 1,
-      image: '/api/placeholder/80/80',
-      type: 'Managed services',
-      description: 'Custom Web development',
-      imagePreview: null
-    },
-    {
-      id: 2,
-      image: '/api/placeholder/80/80',
-      type: 'Perusahaan hardware IT',
-      description: 'IOS and Android apps',
-      imagePreview: null
+  onMount(() => {
+  loadServices();
+  loadSectionSettings();
+});
+
+async function loadServices() {
+  const token = localStorage.getItem("accessToken");
+  const res = await fetch("http://localhost:1337/api/services?populate=image", {
+    headers: {
+      "Authorization": "Bearer " + token
     }
-  ]);
+  });
+  const body = await res.json();
+  console.log("Services Response:", body);
+
+  services = body.data.map((e: any) => ({
+    id: e.documentId,
+    type: e.service_name,
+    description: e.description || "",
+    image: e.image ? "http://localhost:1337" + e.image.url : null
+  }));
+}
+ 
+async function loadSectionSettings() {
+  const token = localStorage.getItem("accessToken");
+  const res = await fetch("http://localhost:1337/api/service-section-setting", {
+    headers: {
+      "Authorization": "Bearer " + token
+    }
+  });
+  const body = await res.json();
+  console.log("Section Settings Response:", body);
+
+  sectionTitle = body.data.title;
+  sectionDescription = body.data.description.map((p: any) => p.children.map((c: any) => c.text).join(" ")).join("\n\n");
+
+}
+ // Function to upload image to Strapi
+  async function uploadImageToStrapi(file: File): Promise<any> {
+    const token = localStorage.getItem("accessToken");
+    const formData = new FormData();
+    formData.append('files', file);
+
+    const response = await fetch("http://localhost:1337/api/upload", {
+      method: 'POST',
+      headers: {
+        "Authorization": "Bearer " + token
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+
+    const result = await response.json();
+    return result[0]; 
+  }
+
+  // Function to create services in Strapi 
+  async function createServicesInStrapi(servicesData: any): Promise<any> {
+    const token = localStorage.getItem("accessToken");
+    
+    const response = await fetch("http://localhost:1337/api/services", {
+      method: 'POST',
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data: servicesData
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create services');
+    }
+
+    return await response.json();
+  }
+
+// Function to update services in Strapi
+  async function updateServicesInStrapi(servicesId: string, servicesData: any): Promise<any> {
+    const token = localStorage.getItem("accessToken");
+    
+    const response = await fetch(`http://localhost:1337/api/services/${servicesId}`, {
+      method: 'PUT',
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data: servicesData
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update services');
+    }
+
+    return await response.json();
+  }
+
+    // Function to delete services from Strapi
+  async function deleteservicesFromStrapi(servicesId: string): Promise<void> {
+    const token = localStorage.getItem("accessToken");
+    
+    const response = await fetch(`http://localhost:1337/api/services/${servicesId}`, {
+      method: 'DELETE',
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete services');
+    }
+  }
+
+   // Function to update section settings in Strapi
+  async function updateSectionSettingsInStrapi(): Promise<void> {
+    const token = localStorage.getItem("accessToken");
+    
+    // Convert description back to rich text format
+    const descriptionBlocks = sectionDescription.split('\n\n').map(paragraph => ({
+      type: 'paragraph',
+      children: [{ type: 'text', text: paragraph }]
+    }));
+
+    const response = await fetch("http://localhost:1337/api/services-section-setting", {
+      method: 'PUT',
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data: {
+          title: sectionTitle,
+          description: descriptionBlocks
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update section settings');
+    }
+  }
+
+  let services = $state<Service[]>([]);
   
+
   function handleAddService(): void {
     showAddServiceModal = true;
     newServiceName = '';
@@ -64,15 +195,15 @@
     showDeleteModal = true;
   }
   
-  function confirmDelete(): void {
-    if (deletingServiceId !== null) {
-      services = services.filter(s => s.id !== deletingServiceId);
-      showDeleteModal = false;
-      deletingServiceId = null;
-      showSuccessModal = true;
-    }
+  async function confirmDelete(): Promise<void> {
+  if (deletingServiceId !== null) {
+    await deleteservicesFromStrapi(deletingServiceId.toString());
+    await loadServices();
+    showDeleteModal = false;
+    deletingServiceId = null;
+    showSuccessModal = true;
   }
-  
+}
   function closeDeleteModal(): void {
     showDeleteModal = false;
     deletingServiceId = null;
@@ -91,7 +222,6 @@
     showSuccessModal = false;
   }
   
-  
   function handleSettingsClick(): void {
     goto('/admin/dashboard-setting');
   }
@@ -108,7 +238,7 @@
         return;
       }
 
-      
+    
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
@@ -127,42 +257,44 @@
     }
   }
   
-  function saveService(): void {
-    if (!newServiceName.trim() || !newServiceDescription.trim()) {
-      alert('Please fill in all fields');
-      return;
-    }
-    
-    if (editingService) {
-      
-      const index = services.findIndex(s => s.id === editingService!.id);
-      if (index !== -1) {
-        services[index] = {
-          ...services[index],
-          type: newServiceName,
-          description: newServiceDescription,
-          image: imagePreviewUrl || services[index].image
-        };
-      }
-    } else {
-     
-      const newService: Service = {
-        id: Date.now(),
-        type: newServiceName,
-        description: newServiceDescription,
-        image: imagePreviewUrl || '/api/placeholder/80/80'
-      };
-      services = [...services, newService];
-    }
-    
-    closeModal();
-    showSuccessModal = true;
+ async function saveService(): Promise<void> {
+  if (!newServiceName.trim() || !newServiceDescription.trim()) {
+    alert('Please fill in all fields');
+    return;
   }
+
+  let imageId: number | null = null;
+  if (newServiceImage?.files?.[0]) {
+    const uploadedImage = await uploadImageToStrapi(newServiceImage.files[0]);
+    imageId = uploadedImage.id;
+  }
+
+  if (editingService) {
+    // UPDATE
+    await updateServicesInStrapi(editingService.id.toString(), {
+      service_name: newServiceName,
+      description: newServiceDescription,
+      image: imageId
+    });
+  } else {
+    // CREATE
+    await createServicesInStrapi({
+      service_name: newServiceName,
+      description: newServiceDescription,
+      image: imageId
+    });
+  }
+
+  await loadServices();
+  closeModal();
+  showSuccessModal = true;
+}
+
   
-  function saveChanges(): void {
-    console.log('Saving section settings:', { sectionTitle, sectionDescription, services });
-    showSuccessModal = true;
-  }
+async function saveChanges(): Promise<void> {
+  await updateSectionSettingsInStrapi();
+  showSuccessModal = true;
+}
   
   function handleModalClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
@@ -218,14 +350,14 @@
         alert('File size exceeds 5MB. Please select a smaller file.');
         return;
       }
-
+  
       
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
         return;
       }
-
+  
       console.log('File dropped:', file.name);
       const reader = new FileReader();
       reader.onload = function(e: ProgressEvent<FileReader>) {
@@ -236,11 +368,11 @@
     }
   }
 </script>
-
+  
 <svelte:head>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 </svelte:head>
-
+  
 <div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
   <div class="p-0 pb-4 flex flex-col gap-3">
    
@@ -312,7 +444,6 @@
           Add Services
         </button>
       </div>
-
      
       <div class="border border-gray-200 rounded-md overflow-hidden">
         <div class="bg-[#2448B1] text-white grid grid-cols-[70px_1fr_1fr_100px] p-2.5 font-semibold text-xs">
@@ -330,7 +461,7 @@
               </div>
             </div>
             <div class="text-xs text-gray-700">{service.type}</div>
-            <div class="text-xs text-gray-700">{service.description}</div>
+            <div class="text-xs text-gray-700 whitespace-normal break-words">{service.description}</div>
             <div class="flex gap-1">
               <button 
                 on:click={() => handleEditService(service)} 
@@ -353,7 +484,6 @@
     </div>
   </div>
 
- 
   {#if showAddServiceModal}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-5 box-border" on:click={handleModalClick}>
       <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click={handleModalContentClick}>
@@ -442,7 +572,6 @@
       </div>
     </div>
   {/if}
-
   
   {#if showDeleteModal}
    
@@ -463,10 +592,8 @@
       </div>
     </div>
   {/if}
-
   
-  {#if showSuccessModal}
-    
+  {#if showSuccessModal}    
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick}>
       <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
         <div class="p-8 text-center relative">

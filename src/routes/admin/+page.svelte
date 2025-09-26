@@ -1,4 +1,4 @@
-<script lang="ts">
+ <script lang="ts">
     import { onMount } from 'svelte';
     import custbkj from '../../lib/assets/bkj.jpeg';
     import custfinnet from '../../lib/assets/finnet.jpeg';
@@ -26,7 +26,7 @@
         type: string;
     }
 
-    interface CalendarDay {
+        interface CalendarDay {
         text: string | number;
         isHeader?: boolean;
         isEmpty?: boolean;

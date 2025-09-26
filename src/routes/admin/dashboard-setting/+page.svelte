@@ -2,7 +2,8 @@
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     
-    
+    let userId = $state(null); 
+    let selectedFile: File | null = $state(null);
     let fullName = $state('');
     let email = $state('');
     let password = $state('');
@@ -16,7 +17,32 @@
         fullName: '',
         email: '',
         password: '',
-        bio: ''
+        bio: '',
+        image: '',
+        general: ''
+    });
+
+    onMount(async() => {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            goto("/login");
+            return;
+        }
+
+        const res = await fetch("http://localhost:1337/api/users/me?populate=image", {
+            headers: {
+            "Authorization": "Bearer " + token
+            }
+        });
+        const body = await res.json();
+        console.log("User Data:", body);
+
+        userId = body.id;
+        fullName = body.username || "";
+        password = "";
+        email = body.email || "";
+        bio = body.bio || "";
+        profileImageSrc = body.image ? "http://localhost:1337" + body.image.url : "/api/placeholder/120/120";
     });
 
     let fileInput: HTMLInputElement | null = $state(null);
@@ -51,7 +77,9 @@
             fullName: '',
             email: '',
             password: '',
-            bio: ''
+            bio: '',
+            image: '',
+            general: ''
         };
     }
 
@@ -81,13 +109,18 @@
         const target = event.target as HTMLInputElement;
         const file = target.files?.[0];
         if (file) {
+            selectedFile = file; // Simpan file untuk upload
             const reader = new FileReader();
             reader.onload = (e) => {
-                profileImageSrc = e.target?.result as string;
+                profileImageSrc = e.target?.result as string; // Preview gambar
             };
             reader.readAsDataURL(file);
+            clearError('image');
+        } else {
+            showError('image', 'Please select an image file');
         }
     }
+
 
     function redirectToDashboard(): void {
         goto('/admin');
@@ -97,62 +130,116 @@
         window.history.back();
     }
 
-    function handleSubmit(event: Event): void {
-        event.preventDefault();
+    async function handleSubmit(event: Event): Promise<void> {
+    event.preventDefault();
 
-        clearAllErrors();
-        
-        let hasErrors = false;
-        
-        if (!fullName.trim()) {
-            showError('fullName', 'Full name is required');
-            hasErrors = true;
-        }
-        
-        if (email.trim() && !validateEmail(email)) {
-            showError('email', 'Please enter a valid email address');
-            hasErrors = true;
-        }
-        
-        if (password && !validatePassword(password)) {
-            showError('password', 'Password must be at least 6 characters long');
-            hasErrors = true;
-        }
-        
-        if (!bio.trim()) {
-            showError('bio', 'Bio cannot be empty');
-            hasErrors = true;
-        }
-        
-        if (hasErrors) {
-            return;
-        }
-        
-        isSubmitting = true;
-        showInlineSuccess = false;
-        
-        setTimeout(() => {
-            isSubmitting = false;
-            showInlineSuccess = true;
-            showSuccessMessage = true;
-            
-            const formData = {
-                fullName,
-                email,
-                password: password || null,
-                bio,
-                profileImage: profileImageSrc
-            };
-            
-            console.log('Profile data saved:', formData);
-            
-            createParticles();
-            setTimeout(() => {
-                redirectToDashboard();
-            }, 2000);
-            
-        }, 1500);
+    clearAllErrors();
+    
+    let hasErrors = false;
+    
+    if (!fullName.trim()) {
+        showError('fullName', 'Full name is required');
+        hasErrors = true;
     }
+    
+    if (email.trim() && !validateEmail(email)) {
+        showError('email', 'Please enter a valid email address');
+        hasErrors = true;
+    }
+    
+    if (password && !validatePassword(password)) {
+        showError('password', 'Password must be at least 6 characters long');
+        hasErrors = true;
+    }
+    
+    if (!bio.trim()) {
+        showError('bio', 'Bio cannot be empty');
+        hasErrors = true;
+    }
+    
+    if (hasErrors) {
+        return;
+    }
+    
+    isSubmitting = true;
+    showInlineSuccess = false;
+
+    const token = localStorage.getItem("accessToken");
+    if (!token || !userId) {
+        showError('general', 'Authentication error. Please log in again.');
+        isSubmitting = false;
+        return;
+    }
+
+    try {
+        let imageId: number | null = null;
+
+        // Upload gambar jika ada
+        if (selectedFile) {
+            const formData = new FormData();
+            formData.append('files', selectedFile);
+
+            const uploadResponse = await fetch('http://localhost:1337/api/upload', {
+                method: 'POST',
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                const errorData = await uploadResponse.json();
+                throw new Error(`Failed to upload image: ${errorData.error?.message || 'Unknown error'}`);
+            }
+
+            const uploadResult = await uploadResponse.json();
+            imageId = uploadResult[0].id; // Ambil ID gambar dari respons
+        }
+
+        // Siapkan data untuk update user
+        const userData: any = {
+            username: fullName,
+            bio: bio
+        };
+        if (email) userData.email = email;
+        if (password) userData.password = password;
+        if (imageId) userData.image = imageId;
+
+        // Update data pengguna
+        const updateResponse = await fetch(`http://localhost:1337/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(userData)
+        });
+
+        if (!updateResponse.ok) {
+            const errorData = await updateResponse.json();
+            throw new Error(`Failed to update profile: ${errorData.error?.message || 'Unknown error'}`);
+        }
+
+        const updatedUser = await updateResponse.json();
+        console.log('Profile updated:', updatedUser);
+
+        // Tampilkan animasi sukses
+        isSubmitting = false;
+        showInlineSuccess = true;
+        showSuccessMessage = true;
+        createParticles();
+
+        // Redirect setelah 2 detik
+        setTimeout(() => {
+            redirectToDashboard();
+        }, 2000);
+
+    } catch (error: any) {
+        isSubmitting = false;
+        showError('general', error.message || 'An error occurred while saving profile.');
+        console.error('Error:', error);
+    }
+}
     
     function closeModalAndRedirect(): void {
         showSuccessMessage = false;
@@ -306,6 +393,9 @@
                 accept="image/*"
                 onchange={handleFileUpload}
             />
+            {#if errors.image}
+                <div class="error-message mt-1 text-red-600 text-xs opacity-100 translate-y-0 transition-all duration-300">{errors.image}</div>
+            {/if}
         </div>
 
         <form onsubmit={handleSubmit}>
@@ -366,6 +456,9 @@
                 ></textarea>
                 <div class="error-message mt-1 text-red-600 text-xs opacity-0 -translate-y-1 transition-all duration-300" class:show={errors.bio}>{errors.bio}</div>
             </div>
+            {#if errors.general}
+                <div class="error-message mt-1 text-red-600 text-xs opacity-100 translate-y-0 transition-all duration-300">{errors.general}</div>
+            {/if}
 
             <button type="submit" class="save-btn w-full bg-[#2448B1] text-white border-none p-3.5 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-300 hover:bg-[#1e3d99] hover:-translate-y-0.5 hover:shadow-xl relative overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed mb-4" disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Save Changes'}

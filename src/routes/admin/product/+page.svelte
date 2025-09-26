@@ -1,43 +1,187 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
 
-
+  //untuk mendefinisikan tipe data untuk produk
   interface Product {
     id: number;
     name: string;
     image: string | null;
   }
 
-  
-  let products = $state<Product[]>([
-    { id: 1, name: 'TACTICAL CHAT', image: null },
-    { id: 2, name: 'E - OFFICE', image: null }
-  ]);
+  // state reaktif untuk menyimpan daftar produk
+  let products = $state<Product[]>([]);
+  let isLoading = $state<boolean>(false);
+  let uploadProgress = $state<number>(0);
 
+  onMount(() => {
+    loadProducts();
+    loadSectionSettings();
+  });
+
+  async function loadProducts () {
+    const token = localStorage.getItem("accessToken");
+    const response = await fetch("http://localhost:1337/api/products?populate=image", {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+    const body = await response.json();
+    products = body.data.map((e: any) => ({
+      id: e.documentId,
+      name: e.product_name,
+      image: e.image ? "http://localhost:1337" + e.image.url : null
+    }));
+  };
+
+  async function loadSectionSettings(){
+    const token = localStorage.getItem("accessToken");
+  const res = await fetch("http://localhost:1337/api/product-section-setting", {
+    headers: {
+      "Authorization": "Bearer " + token
+    }
+  });
+  const body = await res.json();
+  console.log("Section Settings Response:", body);
+
+  sectionTitle = body.data.title;
+  sectionDescription = body.data.description.map((p: any) => p.children.map((c: any) => c.text).join(" ")).join("\n\n");}
+
+  // Function to upload image to Strapi
+  async function uploadImageToStrapi(file: File): Promise<any> {
+    const token = localStorage.getItem("accessToken");
+    const formData = new FormData();
+    formData.append('files', file);
+
+    const response = await fetch("http://localhost:1337/api/upload", {
+      method: 'POST',
+      headers: {
+        "Authorization": "Bearer " + token
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+
+    const result = await response.json();
+    return result[0]; // Strapi returns array of uploaded files
+  }
+
+  // Function to create product in Strapi
+  async function createProductInStrapi(productData: any): Promise<any> {
+    const token = localStorage.getItem("accessToken");
+    
+    const response = await fetch("http://localhost:1337/api/products", {
+      method: 'POST',
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data: productData
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create product');
+    }
+
+    return await response.json();
+  }
+
+  // Function to update product in Strapi
+  async function updateProductInStrapi(productId: string, productData: any): Promise<any> {
+    const token = localStorage.getItem("accessToken");
+    
+    const response = await fetch(`http://localhost:1337/api/products/${productId}`, {
+      method: 'PUT',
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data: productData
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update product');
+    }
+
+    return await response.json();
+  }
+
+  // Function to delete product from Strapi
+  async function deleteProductFromStrapi(productId: string): Promise<void> {
+    const token = localStorage.getItem("accessToken");
+    
+    const response = await fetch(`http://localhost:1337/api/products/${productId}`, {
+      method: 'DELETE',
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete product');
+    }
+  }
+
+  // Function to update section settings in Strapi
+  async function updateSectionSettingsInStrapi(): Promise<void> {
+    const token = localStorage.getItem("accessToken");
+    
+    // Convert description back to rich text format
+    const descriptionBlocks = sectionDescription.split('\n\n').map(paragraph => ({
+      type: 'paragraph',
+      children: [{ type: 'text', text: paragraph }]
+    }));
+
+    const response = await fetch("http://localhost:1337/api/product-section-setting", {
+      method: 'PUT',
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data: {
+          title: sectionTitle,
+          description: descriptionBlocks
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update section settings');
+    }
+  }
+
+  // State untuk pengelolaan input dan modal
   let sectionTitle = $state<string>('');
   let sectionDescription = $state<string>('');
-
- 
   let showAddModal = $state<boolean>(false);
   let showEditModal = $state<boolean>(false);
   let showDeleteModal = $state<boolean>(false);
   let showSuccessModal = $state<boolean>(false);
   let showErrorModal = $state<boolean>(false);
-
-  
   let productName = $state<string>('');
   let editProductName = $state<string>('');
   let currentEditId = $state<number | null>(null);
   let currentDeleteId = $state<number | null>(null);
   let currentImage = $state<string | null>(null);
   let editCurrentImage = $state<string | null>(null);
+  let currentImageFile = $state<File | null>(null);
+  let editCurrentImageFile = $state<File | null>(null);
+  let errorMessage = $state<string>('');
 
- 
+  // Navigasi ke halaman pengaturan
   function goToProfileSettings(): void {
     goto('/admin/dashboard-setting');
   }
 
-  
+  // Menangani unggahan gambar melalui input file
   function handleImageUpload(event: Event, isEdit: boolean = false): void {
     const target = event.target as HTMLInputElement;
     const files = target.files;
@@ -50,11 +194,17 @@
       return;
     }
 
-   
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
     if (!allowedTypes.includes(file.type)) {
       alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
       return;
+    }
+
+    // Store the file for upload
+    if (isEdit) {
+      editCurrentImageFile = file;
+    } else {
+      currentImageFile = file;
     }
 
     const reader = new FileReader();
@@ -69,6 +219,7 @@
     reader.readAsDataURL(file);
   }
 
+  // Menangani event drag-over untuk unggahan gambar
   function handleDragOver(event: DragEvent): void {
     event.preventDefault();
     const target = event.currentTarget as HTMLElement;
@@ -76,6 +227,7 @@
     target.style.background = '#eff6ff';
   }
 
+  // Menangani event drag-leave untuk unggahan gambar
   function handleDragLeave(event: DragEvent): void {
     event.preventDefault();
     const target = event.currentTarget as HTMLElement;
@@ -83,6 +235,7 @@
     target.style.background = '#f9fafb';
   }
 
+  // Menangani event drop untuk unggahan gambar
   function handleDrop(event: DragEvent, isEdit: boolean = false): void {
     event.preventDefault();
     const target = event.currentTarget as HTMLElement;
@@ -104,7 +257,13 @@
         return;
       }
 
-      console.log('File dropped:', file.name);
+      // Store the file for upload
+      if (isEdit) {
+        editCurrentImageFile = file;
+      } else {
+        currentImageFile = file;
+      }
+
       const reader = new FileReader();
       reader.onload = function(e: ProgressEvent<FileReader>) {
         const result = e.target?.result as string;
@@ -118,114 +277,266 @@
     }
   }
 
+  // Menghapus gambar yang telah diunggah
   function removeImage(isEdit: boolean = false): void {
     if (isEdit) {
       editCurrentImage = null;
+      editCurrentImageFile = null;
     } else {
       currentImage = null;
+      currentImageFile = null;
     }
   }
 
+  // Menyimpan perubahan section settings
+  async function saveChanges(): Promise<void> {
+    if (!sectionTitle.trim()) {
+      errorMessage = 'Title is required!';
+      showErrorModal = true;
+      return;
+    }
 
-  function saveChanges(): void {
-    console.log('Saving changes...');
-    showSuccessModal = true;
+    try {
+      isLoading = true;
+      await updateSectionSettingsInStrapi();
+      showSuccessModal = true;
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      errorMessage = 'Failed to save changes. Please try again.';
+      showErrorModal = true;
+    } finally {
+      isLoading = false;
+    }
   }
 
+  // Menutup modal sukses
   function closeSuccessModal(): void {
     showSuccessModal = false;
   }
 
+  // Menutup modal error
   function closeErrorModal(): void {
     showErrorModal = false;
+    errorMessage = '';
   }
 
+  // Membuka modal untuk menambah produk
   function addProduct(): void {
     showAddModal = true;
   }
 
+  // Menutup modal tambah produk dan mereset input
   function closeAddModal(): void {
     showAddModal = false;
     productName = '';
     currentImage = null;
+    currentImageFile = null;
   }
 
-  function saveProduct(): void {
+  // Menyimpan produk baru ke database
+  async function saveProduct(): Promise<void> {
     if (!productName.trim()) {
       alert('Please enter product name!');
       return;
     }
 
-    products = [...products, {
-      id: Date.now(),
-      name: productName.trim(),
-      image: currentImage
-    }];
+    try {
+      isLoading = true;
+      uploadProgress = 0;
 
-    closeAddModal();
-    showSuccessModal = true;
+      let imageId = null;
+      
+      // Upload image if exists
+      if (currentImageFile) {
+        uploadProgress = 30;
+        const uploadedImage = await uploadImageToStrapi(currentImageFile);
+        imageId = uploadedImage.id;
+        uploadProgress = 60;
+      }
+
+      // Create product data
+      const productData: any = {
+        product_name: productName.trim()
+      };
+
+      // Add image if uploaded
+      if (imageId) {
+        productData.image = imageId;
+      }
+
+      uploadProgress = 80;
+      
+      // Create product in Strapi
+      const result = await createProductInStrapi(productData);
+      
+      uploadProgress = 90;
+
+      // Reload products from server to get complete data including populated image
+      await loadProducts();
+      
+      uploadProgress = 100;
+
+      closeAddModal();
+      showSuccessModal = true;
+    } catch (error) {
+      console.error('Error saving product:', error);
+      errorMessage = 'Failed to save product. Please try again.';
+      showErrorModal = true;
+    } finally {
+      isLoading = false;
+      uploadProgress = 0;
+    }
   }
 
+  // Membuka modal edit untuk produk tertentu
   function editProduct(id: number): void {
     const product = products.find((p: Product) => p.id === id);
     if (product) {
       currentEditId = id;
       editProductName = product.name;
       editCurrentImage = product.image;
+      editCurrentImageFile = null;
       showEditModal = true;
     }
   }
 
+  // Menutup modal edit dan mereset input
   function closeEditModal(): void {
     showEditModal = false;
     editProductName = '';
     currentEditId = null;
     editCurrentImage = null;
+    editCurrentImageFile = null;
   }
 
-  function updateProduct(): void {
+  // Memperbarui produk di database
+  async function updateProduct(): Promise<void> {
     if (!editProductName.trim()) {
       alert('Please enter product name!');
       return;
     }
 
-    products = products.map((p: Product) =>
-      p.id === currentEditId
-        ? { ...p, name: editProductName.trim(), image: editCurrentImage }
-        : p
-    );
+    if (!currentEditId) return;
 
-    closeEditModal();
-    showSuccessModal = true;
+    try {
+      isLoading = true;
+      uploadProgress = 0;
+
+      let imageId = null;
+      
+      // Upload new image if exists
+      if (editCurrentImageFile) {
+        uploadProgress = 30;
+        const uploadedImage = await uploadImageToStrapi(editCurrentImageFile);
+        imageId = uploadedImage.id;
+        uploadProgress = 60;
+      }
+
+      // Create product data
+      const productData: any = {
+        product_name: editProductName.trim()
+      };
+
+      // Add image if uploaded
+      if (imageId) {
+        productData.image = imageId;
+      }
+
+      uploadProgress = 80;
+      
+      // Update product in Strapi
+      await updateProductInStrapi(currentEditId.toString(), productData);
+      
+      uploadProgress = 90;
+
+      // Reload products from server to get complete updated data
+      await loadProducts();
+      
+      uploadProgress = 100;
+
+      closeEditModal();
+      showSuccessModal = true;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      errorMessage = 'Failed to update product. Please try again.';
+      showErrorModal = true;
+    } finally {
+      isLoading = false;
+      uploadProgress = 0;
+    }
   }
 
+  // Membuka modal konfirmasi hapus
   function deleteProduct(id: number): void {
     currentDeleteId = id;
     showDeleteModal = true;
   }
 
+  // Menutup modal hapus
   function closeDeleteModal(): void {
     showDeleteModal = false;
     currentDeleteId = null;
   }
 
-  function confirmDelete(): void {
-    products = products.filter((p: Product) => p.id !== currentDeleteId);
-    closeDeleteModal();
-    showSuccessModal = true;
+  // Mengkonfirmasi penghapusan produk dari database
+  async function confirmDelete(): Promise<void> {
+    if (!currentDeleteId) return;
+
+    try {
+      isLoading = true;
+      
+      // Delete from Strapi
+      await deleteProductFromStrapi(currentDeleteId.toString());
+      
+      // Reload products from server to reflect changes
+      await loadProducts();
+      
+      closeDeleteModal();
+      showSuccessModal = true;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      errorMessage = 'Failed to delete product. Please try again.';
+      showErrorModal = true;
+    } finally {
+      isLoading = false;
+    }
   }
 
-
+  // Mencegah penutupan modal saat konten di dalamnya diklik
   function handleModalContentClick(event: MouseEvent): void {
     event.stopPropagation();
   }
 </script>
 
 <svelte:head>
+  <!-- Memuat font Google Material Symbols untuk ikon -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
 </svelte:head>
 
+<!-- Loading overlay -->
+{#if isLoading}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1002]" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-lg p-6 shadow-xl">
+      <div class="flex items-center space-x-3">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#2448B1]"></div>
+        <span class="text-sm font-medium">
+          {#if uploadProgress > 0}
+            Uploading... {uploadProgress}%
+          {:else}
+            Processing...
+          {/if}
+        </span>
+      </div>
+      {#if uploadProgress > 0}
+        <div class="mt-3 w-48 bg-gray-200 rounded-full h-2">
+          <div class="bg-[#2448B1] h-2 rounded-full transition-all duration-300" style="width: {uploadProgress}%"></div>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
 
+<!-- Modal sukses untuk menunjukkan perubahan tersimpan -->
 {#if showSuccessModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true">
     <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative" on:click|stopPropagation>
@@ -234,7 +545,7 @@
           <span class="material-symbols-outlined text-white text-3xl font-semibold">check</span>
         </div>
         <h3 class="text-xl font-semibold text-gray-800 mb-2">Changes Saved</h3>
-        <p class="text-sm text-gray-600">Your changes have been saved.</p>
+        <p class="text-sm text-gray-600">Your changes have been saved successfully.</p>
         <button 
           on:click={closeSuccessModal} 
           class="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200"
@@ -248,15 +559,15 @@
   </div>
 {/if}
 
-
+<!-- Modal error untuk menunjukkan kesalahan -->
 {#if showErrorModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true">
     <div class="bg-white rounded-xl p-5 text-center shadow-2xl w-80 max-w-[90%]" on:click|stopPropagation>
       <div class="w-12 h-12 bg-red-500 rounded-full mx-auto mb-3 flex items-center justify-center">
         <span class="material-symbols-outlined text-white text-2xl font-bold">close</span>
       </div>
-      <h2 class="text-base font-semibold text-gray-800 mb-2">Title is required!</h2>
-      <p class="text-sm text-gray-600 mb-4">Please enter a title before saving.</p>
+      <h2 class="text-base font-semibold text-gray-800 mb-2">Error!</h2>
+      <p class="text-sm text-gray-600 mb-4">{errorMessage}</p>
       <button 
         class="bg-red-500 text-white px-4 py-2 rounded-md font-semibold text-sm min-w-[70px]" 
         on:click={closeErrorModal}
@@ -269,8 +580,10 @@
   </div>
 {/if}
 
+<!-- Kontainer utama untuk halaman manajemen produk -->
 <div class="w-full min-h-screen bg-slate-100 font-inter text-slate-800 leading-relaxed">
   <div class="p-0 pb-4 flex flex-col gap-3">
+    <!-- Header dengan tombol simpan dan pengaturan -->
     <div class="bg-[#2448B1] rounded-lg mx-4 mt-4 p-4 shadow-md border border-gray-200">
       <div class="flex justify-between items-center">
         <div>
@@ -279,8 +592,9 @@
         </div>
         <div class="flex items-center gap-2">
           <button 
-            class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md" 
+            class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed" 
             on:click={saveChanges}
+            disabled={isLoading}
             type="button"
             aria-label="Save changes"
           >
@@ -299,7 +613,7 @@
       </div>
     </div>
 
-  
+    <!-- Pengaturan judul dan deskripsi bagian -->
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Section Settings</h3>
       
@@ -326,13 +640,14 @@
       </div>
     </div>
 
-    
+    <!-- Daftar produk dan tombol tambah produk -->
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <div class="flex justify-between items-center mb-3">
         <h3 class="text-base font-semibold text-gray-800">Manage Products</h3>
         <button 
-          class="bg-green-600 hover:bg-green-700 text-white border-none py-1.5 px-2.5 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1 transition-colors"
+          class="bg-green-600 hover:bg-green-700 text-white border-none py-1.5 px-2.5 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           on:click={addProduct}
+          disabled={isLoading}
           type="button"
           aria-label="Add product"
         >
@@ -341,7 +656,7 @@
         </button>
       </div>
 
-    
+      <!-- Tabel produk -->
       <div class="border border-gray-200 rounded-md overflow-hidden">
         <div class="bg-[#2448B1] text-white grid grid-cols-[70px_1fr_100px] p-2.5 font-semibold text-xs">
           <div>Image</div>
@@ -365,16 +680,18 @@
             <div class="text-xs text-gray-700">{product.name}</div>
             <div class="flex gap-1">
               <button 
-                class="py-1 px-2 border-none rounded bg-[#1E3A8A] text-white cursor-pointer text-[10px] font-semibold transition-all duration-200"
+                class="py-1 px-2 border-none rounded bg-[#1E3A8A] text-white cursor-pointer text-[10px] font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 on:click={() => editProduct(product.id)}
+                disabled={isLoading}
                 type="button"
                 aria-label={`Edit ${product.name}`}
               >
                 Edit
               </button>
               <button 
-                class="py-1 px-2 border-none rounded bg-[#FF0000] text-white cursor-pointer text-[10px] font-semibold transition-all duration-200"
+                class="py-1 px-2 border-none rounded bg-[#FF0000] text-white cursor-pointer text-[10px] font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 on:click={() => deleteProduct(product.id)}
+                disabled={isLoading}
                 type="button"
                 aria-label={`Delete ${product.name}`}
               >
@@ -388,7 +705,7 @@
   </div>
 </div>
 
-
+<!-- Modal untuk menambah produk -->
 {#if showAddModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true" on:click|stopPropagation={closeAddModal}>
     <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click|stopPropagation>
@@ -445,20 +762,26 @@
         </div>
         <div class="flex justify-end gap-2 mt-4">
           <button 
-            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white"
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={closeAddModal}
+            disabled={isLoading}
             type="button"
             aria-label="Cancel"
           >
             Cancel
           </button>
           <button 
-            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white"
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={saveProduct}
+            disabled={isLoading}
             type="button"
             aria-label="Save product"
           >
-            Save
+            {#if isLoading}
+              Saving...
+            {:else}
+              Save
+            {/if}
           </button>
         </div>
       </div>
@@ -466,7 +789,7 @@
   </div>
 {/if}
 
-
+<!-- Modal untuk mengedit produk -->
 {#if showEditModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" role="dialog" aria-modal="true" on:click|stopPropagation={closeEditModal}>
     <div class="bg-white rounded-lg w-96 max-w-[90%] max-h-[90%] overflow-y-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]" on:click|stopPropagation>
@@ -523,20 +846,26 @@
         </div>
         <div class="flex justify-end gap-2 mt-4">
           <button 
-            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white"
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={closeEditModal}
+            disabled={isLoading}
             type="button"
             aria-label="Cancel"
           >
             Cancel
           </button>
           <button 
-            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white"
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={updateProduct}
+            disabled={isLoading}
             type="button"
             aria-label="Save product"
           >
-            Save
+            {#if isLoading}
+              Updating...
+            {:else}
+              Save
+            {/if}
           </button>
         </div>
       </div>
@@ -544,7 +873,7 @@
   </div>
 {/if}
 
-
+<!-- Modal konfirmasi hapus produk -->
 {#if showDeleteModal}
   <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[1001] p-4" role="dialog" aria-modal="true" on:click|stopPropagation={closeDeleteModal}>
     <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center" on:click|stopPropagation>
@@ -560,29 +889,52 @@
         <span class="material-symbols-outlined text-white text-[28px] font-bold">close</span>
       </div>
       <h3 class="text-[18px] font-bold text-[#1e293b] m-0 mb-2">Delete this product?</h3>
-      <p class="text-[13px] text-[#6b7280] m-0">This action cannot be undone.</p>
-      <button 
-        class="bg-[#ff0000] text-white px-6 py-2 rounded-md text-[12px] font-bold mt-4 cursor-pointer hover:bg-[#dc2626]" 
-        on:click={confirmDelete}
-        type="button"
-        aria-label="Confirm delete"
-      >
-        Delete
-      </button>
+      <p class="text-[13px] text-[#6b7280] m-0 mb-4">This action cannot be undone.</p>
+      <div class="flex gap-2 justify-center">
+        <button 
+          class="bg-[#5A5A5A] text-white px-4 py-2 rounded-md text-[12px] font-bold cursor-pointer hover:bg-[#4A4A4A] disabled:opacity-50 disabled:cursor-not-allowed" 
+          on:click={closeDeleteModal}
+          disabled={isLoading}
+          type="button"
+          aria-label="Cancel delete"
+        >
+          Cancel
+        </button>
+        <button 
+          class="bg-[#ff0000] text-white px-4 py-2 rounded-md text-[12px] font-bold cursor-pointer hover:bg-[#dc2626] disabled:opacity-50 disabled:cursor-not-allowed" 
+          on:click={confirmDelete}
+          disabled={isLoading}
+          type="button"
+          aria-label="Confirm delete"
+        >
+          {#if isLoading}
+            Deleting...
+          {:else}
+            Delete
+          {/if}
+        </button>
+      </div>
     </div>
   </div>
 {/if}
 
 <style>
-  @reference "tailwindcss";
-
+  @import "tailwindcss";
   :global(.material-symbols-outlined) {
     font-family: 'Material Symbols Outlined';
     font-size: 16px;
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
   }
 
- 
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -598,7 +950,6 @@
     z-index: 1001;
     padding: 12px;
   }
-
 
   :global(.overflow-y-auto::-webkit-scrollbar) {
     width: 4px;
@@ -618,12 +969,10 @@
     background: #94a3b8;
   }
 
-  
   :global(button) {
     cursor: pointer;
   }
 
-  
   :global(button:focus-visible) {
     outline: 2px solid #2448B1;
     outline-offset: 2px;
@@ -635,14 +984,12 @@
     outline-offset: 2px;
   }
 
-
   @media (max-width: 640px) {
     .btn-text-mobile-hidden {
       display: none;
     }
   }
 
- 
   @media (pointer: coarse) {
     :global(button) {
       min-height: 40px;
@@ -655,7 +1002,6 @@
     }
   }
 
- 
   @media (prefers-contrast: high) {
     :global(input),
     :global(textarea) {
@@ -666,8 +1012,6 @@
       border-width: 2px;
     }
   }
-
-  /* Dark mode support */
   @media (prefers-color-scheme: dark) {
     :global(body) {
       background: #0f172a;
@@ -675,7 +1019,6 @@
     }
   }
 
-  /* Print styles */
   @media print {
     :global(.fixed),
     :global(button) {

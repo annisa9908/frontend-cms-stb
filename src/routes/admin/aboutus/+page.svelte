@@ -1,51 +1,212 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { goto } from '$app/navigation';
 
-  
+  // bikin tipe data buat customer
   interface Customer {
     id: string;
-    name: string;
     image: File | null;
     imagePreview: string | null;
   }
-
-
-  let title = $state('');
-  let description = $state('');
-  let customers = $state<Customer[]>([]);
-  let showAddCustomerModal = $state(false);
-  let showSuccessModal = $state(false);
-  let showDeleteModal = $state(false);
-  let customerToDelete = $state('');
-  let newCustomer = $state<Customer>({ id: '', name: '', image: null, imagePreview: null });
-
   
+  //variabel untuk nyimpan data
+  let id = $state(''); //id halaman about us
+  let title = $state(''); //judul halaman
+  let description = $state(''); //deskripsi halaman
+  let customers = $state<Customer[]>([]); //daftar customer
+  let showAddCustomerModal = $state(false); // tambah customer
+  let showSuccessModal = $state(false); // sukses
+  let showDeleteModal = $state(false); // hapus
+  let customerToDelete = $state(''); // id customer yg mau dihapus
+  let newCustomer = $state<Customer>({ id: '', image: null, imagePreview: null }); //data customer baru
+  let isLoading = $state(false); // loading state
+
+
+  //halaman ketika dibuka 
+  onMount(async () => {
+    await loadAboutUs(); // untuk mengambil data about us
+    await loadCustomer(); // untuk mengambil data customer
+});
+
+
+//untuk mengambil data aboutus dari server
+async function loadAboutUs() {
+  try {
+    const token = localStorage.getItem("accessToken"); //mengambil token untuk auth
+    const response = await fetch("http://localhost:1337/api/about-us", {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to load about us data');
+    }
+    
+    const body = await response.json();
+    // Pastikan data ada sebelum mengisi
+    if (body.data) {
+      id = body.data.documentId || generateUniqueId(); //simpan id, generate jika kosong
+      title = body.data.title || ''; // simpan judul
+      description = body.data.description?.[0]?.children?.[0]?.text || ''; // simpan deskripsi
+    } else {
+      console.warn('No data returned from about-us API');
+      id = generateUniqueId(); // Generate ID jika data kosong
+      title = ''; // Reset jika tidak ada data
+      description = ''; // Reset jika tidak ada data
+    }
+  } catch (error: any) {
+    console.error('Error loading about us:', error);
+    alert('Error loading about us data. Please try again.');
+    id = generateUniqueId(); // Generate ID sebagai fallback
+    title = ''; // Reset sebagai fallback
+    description = ''; // Reset sebagai fallback
+  }
+}
+
+//mengambil data customer dari server
+async function loadCustomer() {
+  try {
+    const token = localStorage.getItem("accessToken"); // ambil token
+    const response = await fetch("http://localhost:1337/api/customers?populate=*", {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to load customers');
+    }
+    
+    const body = await response.json();
+    customers = body.data.map((e: any) => ({
+      id: e.documentId,
+      image: null,
+      imagePreview: e.logo_customer?.length > 0 ? "http://localhost:1337" + e.logo_customer[0].url : null
+    }));
+  } catch (error: any) {
+    console.error('Error loading customers:', error);
+    alert('Error loading customers. Please try again.');
+  }
+};
+  
+  //mengarahkan kehalaman dashboard
   function goToDashboardSetting() {
     goto('/admin/dashboard-setting');
   }
 
- 
+ // membuat id customer 
   function generateUniqueId(): string {
     return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
   }
 
-  function saveChanges() {
-    showSuccessModal = true; 
-    console.log('Saved data:', { title, description, customers });
-    setTimeout(() => (showSuccessModal = false), 3000); 
+  //menyimpan perubahan ke server
+  async function saveChanges() {
+    if (isLoading) return;
+    
+    const token = localStorage.getItem("accessToken");
+    isLoading = true;
+    
+    try {
+      if (!id) {
+        id = generateUniqueId(); // Generate ID jika belum ada
+      }
+
+      // Update About Us dengan PUT
+const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    data: {
+      title: title,
+      description: [
+        {
+          type: 'paragraph',
+          children: [{ type: 'text', text: description }]
+        }
+      ]
+    }
+  })
+});
+
+      if (!aboutUsResponse.ok) {
+        throw new Error(`Failed to update about us: ${aboutUsResponse.statusText}`);
+      }
+
+      // simpan customers dengan gambar
+      for (const customer of customers) {
+        if (customer.image) {
+          // Upload gambar jika ada file baru
+          const formData = new FormData();
+          formData.append('files', customer.image);
+        
+          const uploadResponse = await fetch('http://localhost:1337/api/upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+          
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload image');
+          }
+          
+          const uploadResult = await uploadResponse.json();
+          
+          if (uploadResult.length > 0) {
+            const imageId = uploadResult[0].id;
+            
+            // Update customer dengan gambar
+            const customerResponse = await fetch(`http://localhost:1337/api/customers/${customer.id}`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                data: {
+                  logo_customer: [imageId]
+                }
+              })
+            });
+
+            if (!customerResponse.ok) {
+              throw new Error('Failed to update customer');
+            }
+          }
+        }
+      }
+
+      showSuccessModal = true;
+      setTimeout(() => {
+        showSuccessModal = false;
+        // Reload data setelah berhasil simpan
+        loadAboutUs(); // Reload about us data to ensure consistency
+        loadCustomer();
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Error saving changes:', error);
+      alert('Error saving changes: ' + (error?.message || 'Unknown error. Please check backend configuration or contact support.'));
+    } finally {
+      isLoading = false;
+    }
   }
 
   
   function openAddCustomerModal() {
-    newCustomer = { id: generateUniqueId(), name: `Customer ${customers.length + 1}`, image: null, imagePreview: null };
+    newCustomer = { id: generateUniqueId(), image: null, imagePreview: null };
     showAddCustomerModal = true;
   }
 
 
   function closeAddCustomerModal() {
     showAddCustomerModal = false;
-    newCustomer = { id: '', name: '', image: null, imagePreview: null };
+    newCustomer = { id: '', image: null, imagePreview: null };
   }
 
   
@@ -59,18 +220,100 @@
     customerToDelete = '';
   }
 
- 
-  function saveNewCustomer() {
+  // Simpan customer baru ke database - DIPERBAIKI
+  async function saveNewCustomer() {
     if (!newCustomer.image) {
       alert('Please upload a customer image.');
       return;
     }
     
-    customers = [...customers, { ...newCustomer }];
-    closeAddCustomerModal();
+    if (isLoading) return;
+    
+    const token = localStorage.getItem("accessToken");
+    isLoading = true;
+    
+    try {
+      // Upload gambar terlebih dahulu
+      const formData = new FormData();
+      formData.append('files', newCustomer.image);
+      
+      const uploadResponse = await fetch('http://localhost:1337/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${errorText}`);
+      }
+      
+      const uploadResult = await uploadResponse.json();
+      
+      if (uploadResult && uploadResult.length > 0) {
+        const imageId = uploadResult[0].id;
+        
+        // Buat customer baru dengan gambar
+        const customerData = {
+          data: {
+            logo_customer: [imageId]
+          }
+        };
+
+        console.log('Creating customer with data:', customerData);
+        
+        const customerResponse = await fetch('http://localhost:1337/api/customers', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(customerData)
+        });
+        
+        if (!customerResponse.ok) {
+          const errorText = await customerResponse.text();
+          console.error('Customer creation failed:', errorText);
+          throw new Error(`Failed to create customer: ${errorText}`);
+        }
+        
+        const customerResult = await customerResponse.json();
+        console.log('Customer created successfully:', customerResult);
+        
+        if (customerResult.data) {
+          // Tambahkan ke array lokal dengan data yang tepat
+          const newCustomerData: Customer = {
+            id: customerResult.data.documentId,
+            image: null,
+            imagePreview: "http://localhost:1337" + uploadResult[0].url
+          };
+          
+          customers = [...customers, newCustomerData];
+          
+          closeAddCustomerModal();
+          showSuccessModal = true;
+          setTimeout(() => {
+            showSuccessModal = false;
+            // Reload data untuk memastikan sinkronisasi
+            loadCustomer();
+          }, 2000);
+        } else {
+          throw new Error('Invalid response from server');
+        }
+      } else {
+        throw new Error('Image upload failed - no file returned');
+      }
+    } catch (error: any) {
+      console.error('Error saving customer:', error);
+      alert('Error saving customer: ' + (error?.message || 'Unknown error'));
+    } finally {
+      isLoading = false;
+    }
   }
 
- 
+ // untuk mengipload image kesistem
   function handleImageUpload(event: Event) {
     const target = event.target as HTMLInputElement;
     const files = target.files;
@@ -84,13 +327,13 @@
     }
 
     
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
+      alert('Invalid file format. Please select a JPG, PNG, SVG, or WEBP file.');
       return;
     }
 
-    console.log('Customer image selected:', file.name);
+    console.log('Customer image selected:', file.name, 'Type:', file.type, 'Size:', file.size);
     const reader = new FileReader();
     reader.onload = function (e) {
       if (e.target?.result) {
@@ -114,11 +357,37 @@
     customerToDelete = id;
     showDeleteModal = true;
   }
-
   
-  function confirmDeleteCustomer() {
-    customers = customers.filter((customer) => customer.id !== customerToDelete);
-    closeDeleteModal();
+  // Hapus customer dari database
+  async function confirmDeleteCustomer() {
+    if (isLoading) return;
+    
+    const token = localStorage.getItem("accessToken");
+    isLoading = true;
+    
+    try {
+      const response = await fetch(`http://localhost:1337/api/customers/${customerToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        customers = customers.filter((customer) => customer.id !== customerToDelete);
+        closeDeleteModal();
+        showSuccessModal = true;
+        setTimeout(() => (showSuccessModal = false), 2000);
+      } else {
+        const errorText = await response.text();
+        throw new Error(`Delete failed: ${errorText}`);
+      }
+    } catch (error: any) {
+      console.error('Error deleting customer:', error);
+      alert('Error deleting customer: ' + (error?.message || 'Unknown error'));
+    } finally {
+      isLoading = false;
+    }
   }
 
   
@@ -128,8 +397,8 @@
     );
   }
 
-  
-  function handleImageUploadForCustomer(event: Event, customerId: string) {
+  // Update gambar customer yang sudah ada
+  async function handleImageUploadForCustomer(event: Event, customerId: string) {
     const target = event.target as HTMLInputElement;
     const files = target.files;
     if (!files || files.length === 0) return;
@@ -142,24 +411,81 @@
     }
 
  
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
+      alert('Invalid file format. Please select a JPG, PNG, SVG, or WEBP file.');
       return;
     }
 
     console.log('Customer image updated:', file.name);
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      if (e.target?.result) {
-        customers = customers.map((customer) =>
-          customer.id === customerId
-            ? { ...customer, image: file, imagePreview: e.target?.result as string }
-            : customer
-        );
+    
+    if (isLoading) return;
+    
+    const token = localStorage.getItem("accessToken");
+    isLoading = true;
+    
+    try {
+      // Upload gambar baru
+      const formData = new FormData();
+      formData.append('files', file);
+    
+      const uploadResponse = await fetch('http://localhost:1337/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload image');
       }
-    };
-    reader.readAsDataURL(file);
+      
+      const uploadResult = await uploadResponse.json();
+      
+      if (uploadResult.length > 0) {
+        const imageId = uploadResult[0].id;
+        
+        // Update customer dengan gambar baru
+        const customerResponse = await fetch(`http://localhost:1337/api/customers/${customerId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            data: {
+              logo_customer: [imageId]
+            }
+          })
+        });
+        
+        if (customerResponse.ok) {
+          // Update preview lokal
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            if (e.target?.result) {
+              customers = customers.map((customer) =>
+                customer.id === customerId
+                  ? { ...customer, image: file, imagePreview: e.target?.result as string }
+                  : customer
+              );
+            }
+          };
+          reader.readAsDataURL(file);
+          
+          showSuccessModal = true;
+          setTimeout(() => (showSuccessModal = false), 2000);
+        } else {
+          throw new Error('Failed to update customer');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error updating customer image:', error);
+      alert('Error updating image: ' + (error?.message || 'Unknown error'));
+    } finally {
+      isLoading = false;
+    }
   }
 
   function handleModalClick(event: MouseEvent): void {
@@ -210,9 +536,9 @@
       }
 
      
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
-        alert('Invalid file format. Please select a JPG, PNG, or SVG file.');
+        alert('Invalid file format. Please select a JPG, PNG, SVG, or WEBP file.');
         return;
       }
 
@@ -261,11 +587,12 @@
         <div class="flex items-center gap-2">
           <button 
             on:click={saveChanges} 
-            class="bg-green-600 hover:bg-green-700 text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md"
+            disabled={isLoading}
+            class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white border-none py-2 px-3 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm hover:shadow-md"
             type="button"
           >
-            <span class="material-symbols-outlined text-base">save</span>
-            Save Changes
+            <span class="material-symbols-outlined text-base">{isLoading ? 'hourglass_empty' : 'save'}</span>
+            {isLoading ? 'Saving...' : 'Save Changes'}
           </button>
           
           <button 
@@ -278,7 +605,6 @@
         </div>
       </div>
     </div>
-
   
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Content Editor</h3>
@@ -306,13 +632,13 @@
       </div>
     </div>
 
-    
     <div class="bg-white rounded-lg p-4 shadow-md border border-gray-200 mx-4">
       <h3 class="text-base font-semibold text-gray-800 mb-3">Customer Editor</h3>
       
       <button 
         on:click={openAddCustomerModal} 
-        class="bg-green-600 hover:bg-green-700 text-white border-none py-1.5 px-2.5 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1 transition-colors mb-4"
+        disabled={isLoading}
+        class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white border-none py-1.5 px-2.5 rounded-md cursor-pointer text-xs font-semibold flex items-center gap-1 transition-colors mb-4"
         type="button"
       >
         <span class="material-symbols-outlined text-sm">add</span>
@@ -321,7 +647,10 @@
       
       <div class="customer-content">
         {#if customers.length === 0}
-         
+          <div class="text-center py-8 text-gray-500">
+            <span class="material-symbols-outlined text-4xl mb-2 block">business</span>
+            <p class="text-sm">No customers added yet. Click "Add Customer" to get started.</p>
+          </div>
         {:else}
           <div class="customer-grid grid gap-4 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
             {#each customers as customer (customer.id)}
@@ -334,14 +663,16 @@
                         <div class="image-overlay absolute inset-0 bg-black/60 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
-                            class="btn-change-image flex items-center gap-1 px-2.5 py-1.5 bg-[#374151] text-white border-none rounded text-[10px] cursor-pointer hover:bg-[#4b5563]"
+                            disabled={isLoading}
+                            class="btn-change-image flex items-center gap-1 px-2.5 py-1.5 bg-[#374151] text-white border-none rounded text-[10px] cursor-pointer hover:bg-[#4b5563] disabled:bg-gray-400 disabled:cursor-not-allowed"
                             on:click={() => handleFileInputClick(customer.id)}
                           >
                             <span class="material-symbols-outlined text-[14px]">edit</span>
                             Change Image
                           </button>
                           <button 
-                            class="btn-remove-overlay flex items-center p-1.5 bg-[#ef4444] text-white border-none rounded cursor-pointer text-[12px] hover:bg-[#dc2626]" 
+                            class="btn-remove-overlay flex items-center p-1.5 bg-[#ef4444] text-white border-none rounded cursor-pointer text-[12px] hover:bg-[#dc2626] disabled:bg-gray-400 disabled:cursor-not-allowed" 
+                            disabled={isLoading}
                             on:click={() => removeCustomer(customer.id)}
                             title="Remove customer"
                           >
@@ -366,7 +697,7 @@
                     <input
                       type="file"
                       id="file-{customer.id}"
-                      accept="image/jpeg,image/png,image/svg+xml"
+                      accept="image/jpeg,image/png,image/svg+xml,image/webp"
                       style="display: none;"
                       on:change={(e) => handleImageUploadForCustomer(e, customer.id)}
                     />
@@ -380,7 +711,6 @@
     </div>
   </div>
 
-
   {#if showAddCustomerModal}
     <div class="modal-overlay fixed inset-0 bg-black/60 flex items-center justify-center z-[2000] p-4" on:click={handleModalClick} role="button" tabindex="0" on:keydown={() => {}}>
       <div class="modal-content bg-white rounded-[10px] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] max-w-[450px] w-full max-h-[90vh] overflow-y-auto">
@@ -393,7 +723,7 @@
         
         <div class="modal-body p-4 px-5">
           <div class="mb-3 last:mb-0">
-            <label class="form-label block mb-1 font-semibold text-gray-700 text-xs" for="new-customer-image">Customer Image</label>
+            <label class="form-label block mb-1 font-semibold text-gray-700 text-xs" for="new-customer-image">Customer Image *</label>
             <div 
               class="image-upload-area border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer transition-all duration-200 relative hover:border-[#2448B1] hover:bg-slate-50" 
               on:click={() => handleFileInputClick('new-customer')}
@@ -407,39 +737,45 @@
                   <p class="text-[#2448B1] text-xs font-medium">Click to change image</p>
                 </div>
               {:else}
-                <div class="text-gray-500 text-xs">
-                  <span>Click to upload image</span>
+                <div class="text-gray-500 text-xs py-8">
+                  <span class="material-symbols-outlined text-3xl mb-2 block">cloud_upload</span>
+                  <span>Click to upload or drag and drop</span>
+                  <div class="text-gray-400 mt-1">JPG, PNG, SVG, WEBP (Max 5MB)</div>
                 </div>
               {/if}
               <input
                 type="file"
                 id="file-new-customer"
-                accept="image/jpeg,image/png,image/svg+xml"
+                accept="image/jpeg,image/png,image/svg+xml,image/webp"
                 style="display: none;"
                 on:change={handleImageUpload}
               />
             </div>
-            <p class="text-gray-500 text-xs mt-2 text-center">File must be JPG, PNG, or SVG. Maximum size: 5MB.</p>
+            <p class="text-gray-500 text-xs mt-2 text-center">File must be JPG, PNG, SVG, or WEBP. Maximum size: 5MB.</p>
           </div>
         </div>
 
         <div class="flex justify-end gap-2 p-4 px-5 border-t border-gray-200">
           <button 
-            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white"
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#5A5A5A] text-white hover:bg-[#4A4A4A]"
+            disabled={isLoading}
             on:click={closeAddCustomerModal}>
             Cancel
           </button>
           <button 
-            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white"
+            class="py-2 px-4 border-none rounded cursor-pointer text-xs font-semibold transition-all duration-200 bg-[#1E3A8A] text-white hover:bg-[#1E40AF] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+            disabled={isLoading}
             on:click={saveNewCustomer}>
-            Save
+            {#if isLoading}
+              <span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+            {/if}
+            {isLoading ? 'Saving...' : 'Save Customer'}
           </button>
         </div>
       </div>
     </div>
   {/if}
 
-  
   {#if showSuccessModal}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-5 box-border" on:click={handleSuccessModalClick}>
       <div class="bg-white rounded-2xl w-80 max-w-[90%] shadow-2xl relative">
@@ -447,8 +783,8 @@
           <div class="w-16 h-16 bg-green-500 rounded-full mx-auto mb-5 flex items-center justify-center">
             <span class="material-symbols-outlined text-white text-3xl font-semibold">check</span>
           </div>
-          <h3 class="text-xl font-semibold text-gray-800 mb-2">Changes Saved</h3>
-          <p class="text-sm text-gray-600">Your changes have been saved.</p>
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">Success!</h3>
+          <p class="text-sm text-gray-600">Your changes have been saved successfully.</p>
           <button 
             on:click={closeSuccessModal} 
             class="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200"
@@ -461,7 +797,6 @@
     </div>
   {/if}
 
- 
   {#if showDeleteModal}
     <div class="fixed inset-0 w-full h-full bg-black/60 flex items-center justify-center z-[1001]" on:click={handleDeleteModalClick} role="button" tabindex="0" on:keydown={() => {}}>
       <div class="bg-white rounded-[10px] w-[350px] max-w-[90%] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] relative p-6 text-center">
@@ -469,18 +804,36 @@
           <span class="material-symbols-outlined text-[16px]">close</span>
         </button>
         <div class="w-[60px] h-[60px] bg-[#ff0000] rounded-full mx-auto mb-4 flex items-center justify-center">
-          <span class="material-symbols-outlined text-white text-[28px] font-bold">close</span>
+          <span class="material-symbols-outlined text-white text-[28px] font-bold">delete</span>
         </div>
-        <h3 class="text-[18px] font-bold text-[#1e293b] m-0 mb-2">Delete this service?</h3>
-        <p class="text-[13px] text-[#6b7280] m-0">This action cannot be undone.</p>
-        <button class="bg-[#ff0000] text-white px-6 py-2 rounded-md text-[12px] font-bold mt-4 cursor-pointer hover:bg-[#dc2626]" on:click={confirmDeleteCustomer}>Delete</button>
+        <h3 class="text-[18px] font-bold text-[#1e293b] m-0 mb-2">Delete this customer?</h3>
+        <p class="text-[13px] text-[#6b7280] m-0 mb-4">This action cannot be undone.</p>
+        <div class="flex gap-2 justify-center">
+          <button 
+            class="bg-gray-500 text-white px-4 py-2 rounded-md text-[12px] font-bold cursor-pointer hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed" 
+            disabled={isLoading}
+            on:click={closeDeleteModal}>
+            Cancel
+          </button>
+          <button 
+            class="bg-[#ff0000] text-white px-4 py-2 rounded-md text-[12px] font-bold cursor-pointer hover:bg-[#dc2626] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1" 
+            disabled={isLoading}
+            on:click={confirmDeleteCustomer}>
+            {#if isLoading}
+              <span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+            {/if}
+            {isLoading ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
       </div>
     </div>
   {/if}
 </div>
 
-<style>
+<style lang="postcss">
   @reference "tailwindcss";
+  @import "tailwindcss/preflight";
+  @import "tailwindcss/utilities";
   
   :global(.material-symbols-outlined) {
     font-family: 'Material Symbols Outlined';
@@ -501,6 +854,15 @@
   .btn-cancel, .btn-save-modal {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
   }
 
  

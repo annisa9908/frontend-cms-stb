@@ -9,39 +9,43 @@
   let rememberMe = $state(false);
   let isLoading = $state(false);
   let errorMessage = $state('');
-  let formKey = $state(Date.now()); 
-
-  
-  onMount(() => {
-    email = '';
-    password = '';
-    showPassword = false;
-    rememberMe = false;
-    isLoading = false;
-    errorMessage = '';
-    formKey = Date.now(); 
-    console.log('Login page mounted, resetting state and formKey');
-    return () => {
-      console.log('Login page unmounted');
-    };
-  });
-
-  
-  onDestroy(() => {
-    email = '';
-    password = '';
-    showPassword = false;
-    rememberMe = false;
-    isLoading = false;
-    errorMessage = '';
-  });
 
   function togglePassword() {
     showPassword = !showPassword;
     console.log('showPassword:', showPassword);
   }
 
+  async function login() {
+    const response = await fetch("http://localhost:1337/api/auth/local", {
+      method: "POST",
+      headers: {
+        'content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        "identifier": email,
+        "password": password
+      })
+    })
+
+    const body = await response.json()
+
+    if (response.ok) {
+      //login berhasil
+      localStorage.setItem("acessToken", body.jwt);
+      goto("/admin");
+    } else {
+      //login gagal
+      alert(body.error?.message || "Email atau password salah");
+    }
+
+      //const response = axios.post("http://localhost:1337/api/auth/local", {
+      // "identifier": email,
+      // "password": password
+      //})
+  }
+
   async function handleSubmit() {
+    console.log("Makanan")
     isLoading = true;
     errorMessage = '';
 
@@ -58,16 +62,7 @@
       return;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const isAuthenticated = true;
-    const loggedInUserName = email.split('@')[0];
-
-    if (isAuthenticated) {
-      await goto('/admin', { replaceState: true });
-    } else {
-      errorMessage = "Email atau password salah";
-    }
+    await login()
 
     isLoading = false;
   }
@@ -97,8 +92,10 @@
           {/if}
 
           
-          {#key formKey}
-            <form class="form-container flex flex-col mt-6" on:submit|preventDefault={handleSubmit}>
+          <form class="form-container flex flex-col mt-6" onsubmit={(e) => {
+            e.preventDefault()
+            handleSubmit()
+          }}>
               <!-- Email -->
               <div class="form-group mb-2">
                 <label for="email" class="block text-[#1E293B] font-medium mb-2 text-[14px]">Email</label>
@@ -140,7 +137,7 @@
                   <button
                     type="button"
                     class="password-toggle absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-[#94A3B8] border-none bg-transparent p-1 rounded transition-all duration-200 flex items-center justify-center hover:text-[#2448B1] hover:bg-[rgba(36,72,177,0.1)] disabled:opacity-60 disabled:cursor-not-allowed"
-                    on:click={togglePassword}
+                    onclick={togglePassword}
                     disabled={isLoading}
                   >
                     {#if showPassword}
@@ -158,16 +155,6 @@
                   </button>
                 </div>
               </div>
-              <!-- Checkbox -->
-              <div class="checkbox-group flex items-center mb-3 gap-3">
-                <input
-                  type="checkbox"
-                  id="remember"
-                  bind:checked={rememberMe}
-                  class="w-3 h-3 text-[#2448B1] bg-white border-2 border-[#B2DBFF] rounded focus:ring-[#2448B1] focus:ring-2 focus:ring-offset-0 cursor-pointer accent-[#2448B1]"
-                />
-                <label for="remember" class="text-[#475569] text-[14px] cursor-pointer select-none">Remember Me</label>
-              </div>
               <!-- Submit Button -->
               <div class="form-group mb-4">
                 <button
@@ -180,14 +167,13 @@
                 >
                   {#if isLoading}
                     <div class="loading-spinner w-5 h-5 border-2 border-t-white border-transparent rounded-full animate-spin mr-2"></div>
-                    Memproses...
+                    Processing...
                   {:else}
                     Login
                   {/if}
                 </button>
               </div>
             </form>
-          {/key}
         </div>
         <!-- Company Info -->
         <div class="form-container text-[#94A3B8] text-[11px] font-medium text-center mt-4 mt-auto">
