@@ -2,6 +2,8 @@
   import { createEventDispatcher } from 'svelte';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
+  import { env } from '$env/dynamic/public';
+  import api from '$lib/axios-instance';
 
   const dispatch = createEventDispatcher();
 
@@ -17,7 +19,7 @@
   let isLoading = false;
   let isSaving = false;
   /** @type {number|null}*/
-  let contactId = null; // Store the contact ID for updating
+  let contactId = null;
 
   onMount(async () => {
     await loadContactData();
@@ -32,19 +34,13 @@
       return;
     }
 
-    const response = await fetch("http://localhost:1337/api/contact?populate=*", {
-    headers: {
-    "Authorization": "Bearer " + token,
-    "Content-Type": "application/json"
-  }
-});
+    const response = await api.get("/api/contact?populate=*", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const body = await response.json();
+    const body = response.data;
     console.log('Contact Response:', body);
 
     phone = body.data?.phone || '';
@@ -52,7 +48,6 @@
     developmentOffice = body.data?.development_office || '';
     websiteUrl = body.data?.website_url || '';
     mapEmbed = body.data?.map_embed_code || '';
-
   } catch (error) {
     console.error('Error loading contact data:', error);
   } finally {
@@ -78,7 +73,7 @@
     setTimeout(() => (showValidationError = false), 4000);
     return;
   }
-  
+
   try {
     isSaving = true;
     const token = localStorage.getItem("accessToken");
@@ -97,30 +92,18 @@
       }
     };
 
-    const response = await fetch("http://localhost:1337/api/contact", {
-      method: 'PUT', // single type update
+    const response = await api.put("/api/contact", updateData, {
       headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(updateData)
     });
 
-    if (!response.ok) {
-      const errorBody = await response.json();
-      console.error("Error details:", errorBody);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    console.log('Save successful:', response.data);
 
-    const result = await response.json();
-    console.log('Save successful:', result);
-
-    // refresh state form dari response baru
     await loadContactData();
 
     showSaveNotification = true;
     setTimeout(() => (showSaveNotification = false), 3000);
-
   } catch (error) {
     console.error('Error saving contact data:', error);
     alert('Error saving data. Please try again.');
@@ -128,6 +111,7 @@
     isSaving = false;
   }
 }
+
 
 
  

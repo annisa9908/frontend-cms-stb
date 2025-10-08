@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation'; //untuk pindah halaman
+  import { env } from '$env/dynamic/public'; //untuk mengambil variable environment
+  import api from '$lib/axios-instance'; //intance axios untuk berkomuniasi dengan server
+  import { onMount } from 'svelte'; //hook yang jalan saat komponen pertama kali dimuat 
 
   //untuk mendefinisikan tipe data untuk produk
   interface Product {
@@ -14,158 +16,17 @@
   let isLoading = $state<boolean>(false);
   let uploadProgress = $state<number>(0);
 
-  onMount(() => {
-    loadProducts();
-    loadSectionSettings();
-  });
-
-  async function loadProducts () {
-    const token = localStorage.getItem("accessToken");
-    const response = await fetch("http://localhost:1337/api/products?populate=image", {
-      headers: {
-        "Authorization": "Bearer " + token
-      }
-    });
-    const body = await response.json();
-    products = body.data.map((e: any) => ({
-      id: e.documentId,
-      name: e.product_name,
-      image: e.image ? "http://localhost:1337" + e.image.url : null
-    }));
-  };
-
-  async function loadSectionSettings(){
-    const token = localStorage.getItem("accessToken");
-  const res = await fetch("http://localhost:1337/api/product-section-setting", {
-    headers: {
-      "Authorization": "Bearer " + token
-    }
-  });
-  const body = await res.json();
-  console.log("Section Settings Response:", body);
-
-  sectionTitle = body.data.title;
-  sectionDescription = body.data.description.map((p: any) => p.children.map((c: any) => c.text).join(" ")).join("\n\n");}
-
-  // Function to upload image to Strapi
-  async function uploadImageToStrapi(file: File): Promise<any> {
-    const token = localStorage.getItem("accessToken");
-    const formData = new FormData();
-    formData.append('files', file);
-
-    const response = await fetch("http://localhost:1337/api/upload", {
-      method: 'POST',
-      headers: {
-        "Authorization": "Bearer " + token
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    const result = await response.json();
-    return result[0]; // Strapi returns array of uploaded files
-  }
-
-  // Function to create product in Strapi
-  async function createProductInStrapi(productData: any): Promise<any> {
-    const token = localStorage.getItem("accessToken");
-    
-    const response = await fetch("http://localhost:1337/api/products", {
-      method: 'POST',
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        data: productData
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create product');
-    }
-
-    return await response.json();
-  }
-
-  // Function to update product in Strapi
-  async function updateProductInStrapi(productId: string, productData: any): Promise<any> {
-    const token = localStorage.getItem("accessToken");
-    
-    const response = await fetch(`http://localhost:1337/api/products/${productId}`, {
-      method: 'PUT',
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        data: productData
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update product');
-    }
-
-    return await response.json();
-  }
-
-  // Function to delete product from Strapi
-  async function deleteProductFromStrapi(productId: string): Promise<void> {
-    const token = localStorage.getItem("accessToken");
-    
-    const response = await fetch(`http://localhost:1337/api/products/${productId}`, {
-      method: 'DELETE',
-      headers: {
-        "Authorization": "Bearer " + token
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete product');
-    }
-  }
-
-  // Function to update section settings in Strapi
-  async function updateSectionSettingsInStrapi(): Promise<void> {
-    const token = localStorage.getItem("accessToken");
-    
-    // Convert description back to rich text format
-    const descriptionBlocks = sectionDescription.split('\n\n').map(paragraph => ({
-      type: 'paragraph',
-      children: [{ type: 'text', text: paragraph }]
-    }));
-
-    const response = await fetch("http://localhost:1337/api/product-section-setting", {
-      method: 'PUT',
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        data: {
-          title: sectionTitle,
-          description: descriptionBlocks
-        }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update section settings');
-    }
-  }
-
-  // State untuk pengelolaan input dan modal
+  // State untuk section settings
   let sectionTitle = $state<string>('');
   let sectionDescription = $state<string>('');
-  let showAddModal = $state<boolean>(false);
-  let showEditModal = $state<boolean>(false);
-  let showDeleteModal = $state<boolean>(false);
-  let showSuccessModal = $state<boolean>(false);
-  let showErrorModal = $state<boolean>(false);
+  
+  // State untuk pengelolaan input dan modal
+  let showAddModal = $state<boolean>(false); //untuk menampilkan popup tambah produk 
+  let showEditModal = $state<boolean>(false); //tampilkan popup edit produk 
+  let showDeleteModal = $state<boolean>(false); //menampilkan popup konfirmasi apus 
+  let showSuccessModal = $state<boolean>(false); //menampilkan popup berhasil 
+  let showErrorModal = $state<boolean>(false); // menampilkan popup error 
+
   let productName = $state<string>('');
   let editProductName = $state<string>('');
   let currentEditId = $state<number | null>(null);
@@ -175,6 +36,151 @@
   let currentImageFile = $state<File | null>(null);
   let editCurrentImageFile = $state<File | null>(null);
   let errorMessage = $state<string>('');
+
+  onMount(() => {  //menjalankan saat pertama kali halaman di buka 
+    loadProducts(); //untuk memuat daftar produk dari server 
+    loadSectionSettings(); // untuk memuat pengaturan section 
+  }); 
+
+  async function loadProducts() { //mengambil daftar produk dari database 
+    try { //kirim get request ke api strapi
+      const response = await api.get('/api/products?populate=image'); 
+      products = response.data.data.map((e: any) => ({
+        id: e.documentId, //id unik produk 
+        name: e.product_name, //e.product_name adalah field nama produk di database
+        image: e.image ? env.PUBLIC_BASE_URL + e.image.url : null
+      }));
+    } catch (error) { 
+      console.error('Error loading products:', error); //kalo log error, ke console buat debugging 
+      errorMessage = 'Failed to load products'; //set pesan error
+      showErrorModal = true; //menampilkan modal error ke user 
+    }
+  }
+
+  async function loadSectionSettings() { //untuk mengambil pengaturan section 
+    try {
+      const {data: body} = await api.get("/api/product-section-setting"); //get request ke endpoint section settings
+      
+      if (body.data) { //cek apakah data ada 
+        sectionTitle = body.data.title || ''; //mengambil title, kalau kosong ambil string kosong 
+        
+        // Parse description dari format Strapi rich text
+        if (body.data.description && Array.isArray(body.data.description)) {
+          sectionDescription = body.data.description
+            .map((p: any) => {
+              if (p.children && Array.isArray(p.children)) {
+                return p.children.map((c: any) => c.text || '').join(' ');
+              }
+              return '';
+            })
+            .filter((text: string) => text.trim() !== '')
+            .join('\n\n');
+        } else {
+          sectionDescription = '';
+        }
+      }
+    } catch (error: any) {
+      console.error('Error loading section settings:', error);
+      
+      // Jika error 404, berarti data belum ada
+      if (error.response?.status === 404) {
+        console.log('Section settings not found, using defaults');
+        sectionTitle = '';
+        sectionDescription = '';
+      } else {
+        errorMessage = 'Failed to load section settings';
+        showErrorModal = true;
+      }
+    }
+  }
+
+  // fungsi untuk upload gambar ke product 
+  async function uploadImageToStrapi(file: File): Promise<any> {
+    try {
+      const formData = new FormData(); //form data adalah format khusus untuk upload file via http 
+      formData.append('files', file);
+
+      const response = await api.post("/api/upload", formData, { 
+        headers: { "Content-Type": "multipart/form-data" } //header khusus untuk upload file 
+      });
+
+      return response.data[0];  //return data file yang sudah terupload 
+    } catch (error: any) {
+      if (error.response) { //untuk menunjukan error dari server  misalnya file trlalu besar atau format salah 
+        console.error("Upload gagal:", error.response.data); // untuk lmpar error dari server kalau ada 
+        throw new Error(error.response.data.error?.message || "Upload failed");
+      } else {
+        console.error("Error:", error.message);
+        throw new Error("Upload error: " + error.message);
+      }
+    }
+  }
+
+  // fungsi untuk bikin produk baru di strapi 
+  async function createProductInStrapi(productData: any): Promise<any> {
+    try {
+      const response = await api.post("/api/products", { data: productData });
+      return response.data;
+    } catch (error) {
+      console.error("Error create products:", error);
+      throw new Error("Failed to create product");
+    }
+  }
+
+  // Function to update product in Strapi
+  async function updateProductInStrapi(productId: string, productData: any): Promise<any> {
+    try {
+      const response = await api.put(`/api/products/${productId}`, { data: productData });
+      return response.data;
+    } catch (error) {
+      console.error("Error update products:", error);
+      throw new Error("Failed to update product");
+    }
+  }
+
+  // Function to delete product from Strapi
+  async function deleteProductFromStrapi(productId: string): Promise<void> {
+    try {
+      await api.delete(`/api/products/${productId}`);
+    } catch (error) {
+      console.error("Error delete product:", error);
+      throw new Error("Failed to delete product");
+    }
+  }
+
+  // Function to update section settings in Strapi 
+  async function updateSectionSettingsInStrapi(): Promise<void> {
+    try {
+      // Parse description menjadi format rich text Strapi
+      const descriptionBlocks = sectionDescription
+        .split("\n\n")
+        .filter(paragraph => paragraph.trim() !== '')
+        .map((paragraph) => ({
+          type: "paragraph",
+          children: [{ type: "text", text: paragraph.trim() }],
+        }));
+
+      // Gunakan endpoint yang konsisten
+      const response = await api.put("/api/product-section-setting", {
+        data: {
+          title: sectionTitle,
+          description: descriptionBlocks,
+        },
+      });
+      
+      console.log('Section settings updated successfully:', response.data);
+    } catch (error: any) {
+      console.error("Error update section settings:", error);
+      
+      // Log detail error untuk debugging
+      if (error.response) {
+        console.error('Response error:', error.response.data);
+        console.error('Status:', error.response.status);
+      }
+      
+      throw new Error(error.response?.data?.error?.message || "Failed to update section settings");
+    }
+  }
 
   // Navigasi ke halaman pengaturan
   function goToProfileSettings(): void {
@@ -300,9 +306,9 @@
       isLoading = true;
       await updateSectionSettingsInStrapi();
       showSuccessModal = true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving changes:', error);
-      errorMessage = 'Failed to save changes. Please try again.';
+      errorMessage = error.message || 'Failed to save changes. Please try again.';
       showErrorModal = true;
     } finally {
       isLoading = false;
@@ -367,8 +373,7 @@
       uploadProgress = 80;
       
       // Create product in Strapi
-      const result = await createProductInStrapi(productData);
-      
+      await createProductInStrapi(productData);
       uploadProgress = 90;
 
       // Reload products from server to get complete data including populated image
@@ -378,9 +383,9 @@
 
       closeAddModal();
       showSuccessModal = true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving product:', error);
-      errorMessage = 'Failed to save product. Please try again.';
+      errorMessage = error.message || 'Failed to save product. Please try again.';
       showErrorModal = true;
     } finally {
       isLoading = false;
@@ -456,9 +461,9 @@
 
       closeEditModal();
       showSuccessModal = true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating product:', error);
-      errorMessage = 'Failed to update product. Please try again.';
+      errorMessage = error.message || 'Failed to update product. Please try again.';
       showErrorModal = true;
     } finally {
       isLoading = false;
@@ -493,9 +498,9 @@
       
       closeDeleteModal();
       showSuccessModal = true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting product:', error);
-      errorMessage = 'Failed to delete product. Please try again.';
+      errorMessage = error.message || 'Failed to delete product. Please try again.';
       showErrorModal = true;
     } finally {
       isLoading = false;
@@ -935,22 +940,6 @@
     animation: spin 1s linear infinite;
   }
 
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1001;
-    padding: 12px;
-  }
-
   :global(.overflow-y-auto::-webkit-scrollbar) {
     width: 4px;
   }
@@ -1012,6 +1001,7 @@
       border-width: 2px;
     }
   }
+  
   @media (prefers-color-scheme: dark) {
     :global(body) {
       background: #0f172a;

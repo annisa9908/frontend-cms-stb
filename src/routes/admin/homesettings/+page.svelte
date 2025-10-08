@@ -1,426 +1,348 @@
-
 <script lang="ts">
-  // Import alat dari Svelte
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+// Import alat dari Svelte
+import { createEventDispatcher, onMount } from 'svelte';
+import { goto } from '$app/navigation';
+import { env } from '$env/dynamic/public';
+import api from '$lib/axios-instance';
 
-  // Buat event untuk mengirim data ke komponen lain
-  const dispatch = createEventDispatcher<{
-    save: { title: string; description: string };
-    logoUpdate: { url: string };
-    imageUpdate: { url: string };
-  }>();
+// Buat event untuk mengirim data ke komponen lain
+const dispatch = createEventDispatcher<{
+	save: { title: string; description: string };
+	logoUpdate: { url: string };
+	imageUpdate: { url: string };
+}>();
 
-  // Variabel untuk mengatur modal dan tipe hapus
-  let deleteType = $state<'logo' | 'image' | ''>('');
-  let showEditCompanyLogoModal = $state(false);
-  let showEditImageModal = $state(false);
-  let showSuccessModal = $state(false);
-  let showDeleteModal = $state(false);
+// Variabel untuk mengatur modal dan tipe hapus
+let deleteType = $state<'logo' | 'image' | ''>('');
+let showEditCompanyLogoModal = $state(false);
+let showEditImageModal = $state(false);
+let showSuccessModal = $state(false);
+let showDeleteModal = $state(false);
+let logoFile = $state<HTMLInputElement | null>(null);
+let imageFile = $state<HTMLInputElement | null>(null);
 
-  let logoFile = $state<HTMLInputElement | null>(null);
-  let imageFile = $state<HTMLInputElement | null>(null);
+// Variabel untuk menyimpan URL dan ID
+let currentLogoUrl = $state('');
+let currentImageUrl = $state('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E');
+let tempLogoPreviewUrl = $state('');
+let tempImagePreviewUrl = $state('');
+let logoFileId = $state<string | null>(null);
+let imageFileId = $state<string | null>(null);
+let title = $state('');
+let description = $state('');
+let isLogoSaveDisabled = $state(true);
+let isImageSaveDisabled = $state(true);
+let isLogoDeleteDisabled = $state(true);
+let isImageDeleteDisabled = $state(true);
 
-  // Variabel untuk menyimpan URL dan ID
-  let currentLogoUrl = $state('');
-  let currentImageUrl = $state('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E');
-  let tempLogoPreviewUrl = $state('');
-  let tempImagePreviewUrl = $state('');
-  let logoFileId = $state<string | null>(null);
-  let imageFileId = $state<string | null>(null);
+onMount(async () => {
+	try {
+		const response = await api.get("/api/home-setting?populate=*");
+		const data = response.data.data;
+		
+		title = data?.title || '';
+		description = data?.description[0]?.children[0]?.text || '';
+		currentImageUrl = data?.image?.url ? `${env.PUBLIC_BASE_URL}${data.image.url}` : currentImageUrl;
+		currentLogoUrl = data?.company_logo?.url ? `${env.PUBLIC_BASE_URL}${data.company_logo.url}` : currentLogoUrl;
+		logoFileId = data?.company_logo?.id || null;
+		imageFileId = data?.image?.id || null;
+	} catch (error) {
+		console.error('Error saat mengambil data:', error);
+		alert('Gagal mengambil data pengaturan. Silakan coba lagi.');
+	}
+});
 
-  let title = $state('');
-  let description = $state('');
+$effect(() => {
+	isLogoSaveDisabled = !tempLogoPreviewUrl;
+	isImageSaveDisabled = !tempImagePreviewUrl || tempImagePreviewUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
+	isLogoDeleteDisabled = !currentLogoUrl;
+	isImageDeleteDisabled = currentImageUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
+});
 
-  let isLogoSaveDisabled = $state(true);
-  let isImageSaveDisabled = $state(true);
-  let isLogoDeleteDisabled = $state(true);
-  let isImageDeleteDisabled = $state(true);
+function handleEditCompanyLogo(): void {
+	tempLogoPreviewUrl = currentLogoUrl;
+	showEditCompanyLogoModal = true;
+}
 
-  onMount(async () => {
-    const token = localStorage.getItem("accessToken");
-    try {
-      const response = await fetch("http://localhost:1337/api/home-setting?populate=*", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      const body = await response.json();
-      title = body.data?.title || '';
-      description = body.data?.description[0]?.children[0]?.text || '';
-      currentImageUrl = body.data?.image?.url ? `http://localhost:1337${body.data.image.url}` : currentImageUrl;
-      currentLogoUrl = body.data?.company_logo?.url ? `http://localhost:1337${body.data.company_logo.url}` : currentLogoUrl;
-      logoFileId = body.data?.company_logo?.id || null;
-      imageFileId = body.data?.image?.id || null;
-    } catch (error) {
-      console.error('Error saat mengambil data:', error);
-      alert('Gagal mengambil data pengaturan. Silakan coba lagi.');
-    }
-  });
+function handleEditImage(): void {
+	tempImagePreviewUrl = currentImageUrl;
+	showEditImageModal = true;
+}
 
-  $effect(() => {
-    isLogoSaveDisabled = !tempLogoPreviewUrl;
-    isImageSaveDisabled = !tempImagePreviewUrl || tempImagePreviewUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
-    isLogoDeleteDisabled = !currentLogoUrl;
-    isImageDeleteDisabled = currentImageUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
-  });
+function handleDeleteModal(type: 'logo' | 'image'): void {
+	deleteType = type;
+	showDeleteModal = true;
+}
 
-  function handleEditCompanyLogo(): void {
-    tempLogoPreviewUrl = currentLogoUrl;
-    showEditCompanyLogoModal = true;
-  }
+function closeModal(): void {
+	showEditCompanyLogoModal = false;
+	showEditImageModal = false;
+	showSuccessModal = false;
+	showDeleteModal = false;
+	tempLogoPreviewUrl = '';
+	tempImagePreviewUrl = '';
+}
 
-  function handleEditImage(): void {
-    tempImagePreviewUrl = currentImageUrl;
-    showEditImageModal = true;
-  }
+function closeSuccessModal(): void {
+	showSuccessModal = false;
+}
 
-  function handleDeleteModal(type: 'logo' | 'image'): void {
-    deleteType = type;
-    showDeleteModal = true;
-  }
+function closeDeleteModal(): void {
+	showDeleteModal = false;
+	deleteType = '';
+}
 
-  function closeModal(): void {
-    showEditCompanyLogoModal = false;
-    showEditImageModal = false;
-    showSuccessModal = false;
-    showDeleteModal = false;
-    tempLogoPreviewUrl = '';
-    tempImagePreviewUrl = '';
-  }
+function handleSettingsClick(): void {
+	goto('/admin/dashboard-setting');
+}
 
-  function closeSuccessModal(): void {
-    showSuccessModal = false;
-  }
+function handleFileSelect(event: Event, type: 'logo' | 'image'): void {
+	const target = event.target as HTMLInputElement;
+	const file = target.files?.[0];
+	
+	if (file) {
+		const maxSize = 5 * 1024 * 1024;
+		if (file.size > maxSize) {
+			alert('Ukuran file melebihi 5MB. Silakan pilih file yang lebih kecil.');
+			return;
+		}
+		
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+		if (!allowedTypes.includes(file.type)) {
+			alert('Format file tidak valid. Silakan pilih file JPG, PNG, atau SVG.');
+			return;
+		}
+		
+		console.log(`${type} file dipilih:`, file.name);
+		const reader = new FileReader();
+		reader.onload = function (e: ProgressEvent<FileReader>) {
+			const result = e.target?.result as string;
+			if (type === 'logo') {
+				tempLogoPreviewUrl = result;
+			} else if (type === 'image') {
+				tempImagePreviewUrl = result;
+			}
+		};
+		reader.readAsDataURL(file);
+	}
+}
 
-  function closeDeleteModal(): void {
-    showDeleteModal = false;
-    deleteType = '';
-  }
+async function saveLogo() {
+	if (!tempLogoPreviewUrl || !logoFile?.files?.[0]) return;
 
-  function handleSettingsClick(): void {
-    goto('/admin/dashboard-setting');
-  }
+	const formData = new FormData();
+	formData.append('files', logoFile.files[0]);
 
-  function handleFileSelect(event: Event, type: 'logo' | 'image'): void {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
+	try {
+		// Upload file menggunakan axios
+		const uploadResponse = await api.post('/api/upload', formData, {
+			headers: {
+				'Content-Type': 'multipart/form-data',
+			},
+		});
 
-    if (file) {
-      const maxSize = 5 * 1024 * 1024;
-      if (file.size > maxSize) {
-        alert('Ukuran file melebihi 5MB. Silakan pilih file yang lebih kecil.');
-        return;
-      }
+		const logoUrl = uploadResponse.data[0].url;
+		logoFileId = uploadResponse.data[0].id;
 
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
-      if (!allowedTypes.includes(file.type)) {
-        alert('Format file tidak valid. Silakan pilih file JPG, PNG, atau SVG.');
-        return;
-      }
+		// Update home-setting menggunakan axios
+		await api.put('/api/home-setting', {
+			data: {
+				company_logo: uploadResponse.data[0].id,
+			},
+		});
 
-      console.log(`${type} file dipilih:`, file.name);
-      const reader = new FileReader();
-      reader.onload = function (e: ProgressEvent<FileReader>) {
-        const result = e.target?.result as string;
-        if (type === 'logo') {
-          tempLogoPreviewUrl = result;
-        } else if (type === 'image') {
-          tempImagePreviewUrl = result;
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  }
+		currentLogoUrl = `${env.PUBLIC_BASE_URL}${logoUrl}`;
+		showEditCompanyLogoModal = false;
+		showSuccessModal = true;
+		dispatch('logoUpdate', { url: currentLogoUrl });
+		
+		setTimeout(() => {
+			showSuccessModal = false;
+		}, 3000);
+	} catch (error) {
+		console.error('Error saat menyimpan logo:', error);
+		alert('Terjadi kesalahan saat menyimpan logo.');
+	}
+}
 
-  async function saveLogo(){
-    if (!tempLogoPreviewUrl || !logoFile?.files?.[0]) return;
+async function saveImage() {
+	if (!tempImagePreviewUrl || tempImagePreviewUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E' || !imageFile?.files?.[0]) return;
 
-    const token = localStorage.getItem("accessToken");
-    const formData = new FormData();
-    formData.append('files', logoFile.files[0]);
+	const formData = new FormData();
+	formData.append('files', imageFile.files[0]);
 
-    try {
-      const uploadResponse = await fetch('http://localhost:1337/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
+	try {
+		// Upload file menggunakan axios
+		const uploadResponse = await api.post('/api/upload', formData, {
+			headers: {
+				'Content-Type': 'multipart/form-data',
+			},
+		});
 
-      if (!uploadResponse.ok) {
-        throw new Error('Gagal mengunggah logo.');
-      }
+		const imageUrl = uploadResponse.data[0].url;
+		imageFileId = uploadResponse.data[0].id;
 
-      const uploadData = await uploadResponse.json();
-      const logoUrl = uploadData[0].url;
-      logoFileId = uploadData[0].id;
+		// Update home-setting menggunakan axios
+		await api.put('/api/home-setting', {
+			data: {
+				image: uploadResponse.data[0].id,
+			},
+		});
 
-      const updateResponse = await fetch('http://localhost:1337/api/home-setting', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: {
-            company_logo: uploadData[0].id,
-          },
-        }),
-      });
+		currentImageUrl = `${env.PUBLIC_BASE_URL}${imageUrl}`;
+		showEditImageModal = false;
+		showSuccessModal = true;
+		dispatch('imageUpdate', { url: currentImageUrl });
+		
+		setTimeout(() => {
+			showSuccessModal = false;
+		}, 3000);
+	} catch (error) {
+		console.error('Error saat menyimpan gambar:', error);
+		alert('Terjadi kesalahan saat menyimpan gambar.');
+	}
+}
 
-      if (updateResponse.ok) {
-        currentLogoUrl = `http://localhost:1337${logoUrl}`;
-        showEditCompanyLogoModal = false;
-        showSuccessModal = true;
-        dispatch('logoUpdate', { url: currentLogoUrl });
-        setTimeout(() => {
-          showSuccessModal = false;
-        }, 3000);
-      } else {
-        throw new Error('Gagal memperbarui logo di database.');
-      }
-    } catch (error) {
-      console.error('Error saat menyimpan logo:', error);
-      alert('Terjadi kesalahan saat menyimpan logo.');
-    }
-  }
+async function confirmDelete() {
+	try {
+		if (deleteType === 'logo' && logoFileId) {
+			// Hapus file menggunakan axios
+			await api.delete(`/api/upload/files/${logoFileId}`);
+			
+			// Update home-setting menggunakan axios
+			await api.put('/api/home-setting', {
+				data: {
+					company_logo: null,
+				},
+			});
 
-  async function saveImage(){
-    if (!tempImagePreviewUrl || tempImagePreviewUrl === 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E' || !imageFile?.files?.[0]) return;
+			currentLogoUrl = '';
+			logoFileId = null;
+		} else if (deleteType === 'image' && imageFileId) {
+			// Hapus file menggunakan axios
+			await api.delete(`/api/upload/files/${imageFileId}`);
+			
+			// Update home-setting menggunakan axios
+			await api.put('/api/home-setting', {
+				data: {
+					image: null,
+				},
+			});
 
-    const token = localStorage.getItem("accessToken");
-    const formData = new FormData();
-    formData.append('files', imageFile.files[0]);
+			currentImageUrl = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
+			imageFileId = null;
+		}
+		
+		closeDeleteModal();
+	} catch (error) {
+		console.error('Error saat menghapus:', error);
+		alert('Terjadi kesalahan saat menghapus.');
+	}
+}
 
-    try {
-      const uploadResponse = await fetch('http://localhost:1337/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
+async function handleSaveChanges() {
+	// Validasi input
+	if (!title.trim() && !description.trim()) {
+		alert('Judul atau deskripsi tidak boleh kosong.');
+		return;
+	}
 
-      if (!uploadResponse.ok) {
-        throw new Error('Gagal mengunggah gambar.');
-      }
+	try {
+		// Update menggunakan axios
+		await api.put("/api/home-setting", {
+			data: {
+				title: title.trim() || null,
+				description: description.trim() ? [
+					{
+						type: 'paragraph',
+						children: [{ type: 'text', text: description.trim() }],
+					},
+				] : null,
+			},
+		});
 
-      const uploadData = await uploadResponse.json();
-      const imageUrl = uploadData[0].url;
-      imageFileId = uploadData[0].id;
+		showSuccessModal = true;
+		setTimeout(() => {
+			showSuccessModal = false;
+		}, 3000);
+		
+		dispatch('save', { title, description });
+	} catch (error: any) {
+		console.error('Error saat menyimpan perubahan:', error);
+		alert(`Gagal menyimpan perubahan: ${error.response?.data?.error?.message || 'Silakan coba lagi.'}`);
+	}
+}
 
-      const updateResponse = await fetch('http://localhost:1337/api/home-setting', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: {
-            image: uploadData[0].id,
-          },
-        }),
-      });
+function handleModalClick(event: MouseEvent): void {
+	if (event.target === event.currentTarget) {
+		closeModal();
+	}
+}
 
-      if (updateResponse.ok) {
-        currentImageUrl = `http://localhost:1337${imageUrl}`;
-        showEditImageModal = false;
-        showSuccessModal = true;
-        dispatch('imageUpdate', { url: currentImageUrl });
-        setTimeout(() => {
-          showSuccessModal = false;
-        }, 3000);
-      } else {
-        throw new Error('Gagal memperbarui gambar di database.');
-      }
-    } catch (error) {
-      console.error('Error saat menyimpan gambar:', error);
-      alert('Terjadi kesalahan saat menyimpan gambar.');
-    }
-  }
+function handleSuccessModalClick(event: MouseEvent): void {
+	if (event.target === event.currentTarget) {
+		closeSuccessModal();
+	}
+}
 
-  async function confirmDelete(){
-    const token = localStorage.getItem("accessToken");
-    try {
-      if (deleteType === 'logo' && logoFileId) {
-        await fetch(`http://localhost:1337/api/upload/files/${logoFileId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+function handleDeleteModalClick(event: MouseEvent): void {
+	if (event.target === event.currentTarget) {
+		closeDeleteModal();
+	}
+}
 
-        await fetch('http://localhost:1337/api/home-setting', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            data: {
-              company_logo: null,
-            },
-          }),
-        });
+function handleModalContentClick(event: MouseEvent): void {
+	event.stopPropagation();
+}
 
-        currentLogoUrl = '';
-        logoFileId = null;
-      } else if (deleteType === 'image' && imageFileId) {
-        await fetch(`http://localhost:1337/api/upload/files/${imageFileId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+function handleDragOver(event: DragEvent): void {
+	event.preventDefault();
+	const target = event.currentTarget as HTMLElement;
+	target.style.borderColor = '#2448B1';
+	target.style.background = '#eff6ff';
+}
 
-        await fetch('http://localhost:1337/api/home-setting', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            data: {
-              image: null,
-            },
-          }),
-        });
+function handleDragLeave(event: DragEvent): void {
+	event.preventDefault();
+	const target = event.currentTarget as HTMLElement;
+	target.style.borderColor = '#d1d5db';
+	target.style.background = '#f9fafb';
+}
 
-        currentImageUrl = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'105\' viewBox=\'0 0 140 105\'%3E%3Crect width=\'140\' height=\'105\' fill=\'%23E3F2FD\' rx=\'8\'/%3E%3Cpath d=\'M20 85 L35 65 L50 75 L70 55 L85 70 L120 35 L120 90 L20 90 Z\' fill=\'%2310b981\'/%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'8\' fill=\'%23FFC107\'/%3E%3Cpath d=\'M100 20 L115 30 L100 40 L85 30 Z\' fill=\'%23ef4444\'/%3E%3C/svg%3E';
-        imageFileId = null;
-      }
+function handleDrop(event: DragEvent, type: 'logo' | 'image'): void {
+	event.preventDefault();
+	const target = event.currentTarget as HTMLElement;
+	target.style.borderColor = '#d1d5db';
+	target.style.background = '#f9fafb';
 
-      closeDeleteModal();
-    } catch (error) {
-      console.error('Error saat menghapus:', error);
-      alert('Terjadi kesalahan saat menghapus.');
-    }
-  }
+	const files = event.dataTransfer?.files;
+	if (files && files.length > 0) {
+		const file = files[0];
+		const maxSize = 5 * 1024 * 1024;
+		if (file.size > maxSize) {
+			alert('Ukuran file melebihi 5MB. Silakan pilih file yang lebih kecil.');
+			return;
+		}
 
-  async function handleSaveChanges(){
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      alert('Token tidak ditemukan. Silakan login kembali.');
-      return;
-    }
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+		if (!allowedTypes.includes(file.type)) {
+			alert('Format file tidak valid. Silakan pilih file JPG, PNG, atau SVG.');
+			return;
+		}
 
-    // Validasi input
-    if (!title.trim() && !description.trim()) {
-      alert('Judul atau deskripsi tidak boleh kosong.');
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:1337/api/home-setting", {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: {
-            title: title.trim() || null,
-            description: description.trim()
-              ? [
-                  {
-                    type: 'paragraph',
-                    children: [{ type: 'text', text: description.trim() }],
-                  },
-                ]
-              : null,
-          },
-        }),
-      });
-
-      if (response.ok) {
-        showSuccessModal = true;
-        setTimeout(() => {
-          showSuccessModal = false;
-        }, 3000);
-        dispatch('save', { title, description });
-      } else {
-        const errorData = await response.json();
-        console.error('Error dari Strapi:', errorData);
-        alert(`Gagal menyimpan perubahan: ${errorData.error?.message || 'Silakan coba lagi.'}`);
-      }
-    } catch (error) {
-      console.error('Error saat menyimpan perubahan:', error);
-      alert('Terjadi kesalahan saat menyimpan perubahan. Periksa koneksi atau coba lagi.');
-    }
-  }
-
-  function handleModalClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      closeModal();
-    }
-  }
-
-  function handleSuccessModalClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      closeSuccessModal();
-    }
-  }
-
-  function handleDeleteModalClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      closeDeleteModal();
-    }
-  }
-
-  function handleModalContentClick(event: MouseEvent): void {
-    event.stopPropagation();
-  }
-
-  function handleDragOver(event: DragEvent): void {
-    event.preventDefault();
-    const target = event.currentTarget as HTMLElement;
-    target.style.borderColor = '#2448B1';
-    target.style.background = '#eff6ff';
-  }
-
-  function handleDragLeave(event: DragEvent): void {
-    event.preventDefault();
-    const target = event.currentTarget as HTMLElement;
-    target.style.borderColor = '#d1d5db';
-    target.style.background = '#f9fafb';
-  }
-
-  function handleDrop(event: DragEvent, type: 'logo' | 'image'): void {
-    event.preventDefault();
-    const target = event.currentTarget as HTMLElement;
-    target.style.borderColor = '#d1d5db';
-    target.style.background = '#f9fafb';
-
-    const files = event.dataTransfer?.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      const maxSize = 5 * 1024 * 1024;
-      if (file.size > maxSize) {
-        alert('Ukuran file melebihi 5MB. Silakan pilih file yang lebih kecil.');
-        return;
-      }
-
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
-      if (!allowedTypes.includes(file.type)) {
-        alert('Format file tidak valid. Silakan pilih file JPG, PNG, atau SVG.');
-        return;
-      }
-
-      console.log('File di-drop:', file.name);
-      const reader = new FileReader();
-      reader.onload = function (e: ProgressEvent<FileReader>) {
-        const result = e.target?.result as string;
-        if (type === 'logo') {
-          tempLogoPreviewUrl = result;
-        } else if (type === 'image') {
-          tempImagePreviewUrl = result;
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  }
+		console.log('File di-drop:', file.name);
+		const reader = new FileReader();
+		reader.onload = function (e: ProgressEvent<FileReader>) {
+			const result = e.target?.result as string;
+			if (type === 'logo') {
+				tempLogoPreviewUrl = result;
+			} else if (type === 'image') {
+				tempImagePreviewUrl = result;
+			}
+		};
+		reader.readAsDataURL(file);
+	}
+}
 </script>
 
 <svelte:head>

@@ -1,315 +1,195 @@
- <script lang="ts">
+  <script lang="ts">
     import { onMount } from 'svelte';
-    import custbkj from '../../lib/assets/bkj.jpeg';
-    import custfinnet from '../../lib/assets/finnet.jpeg';
-    import custlintasarta from '../../lib/assets/lintasarta.jpeg';
-    import custbtn from '../../lib/assets/btn.jpeg';
-    import custbri from '../../lib/assets/bri.jpeg';
-    import custcaptifit from '../../lib/assets/captifit.jpeg';
-    import custkemnaker from '../../lib/assets/kemnaker.jpeg';
-    import custlinknet from '../../lib/assets/linknet.jpeg';
     import { goto } from '$app/navigation';
     import { userName, isLoggedIn, restoreSession } from '../../lib/store';
+    import api from '$lib/axios-instance';
+    import { PUBLIC_BASE_URL } from '$env/static/public';
+	import { env } from '$env/dynamic/public';
 
     interface Activity {
+        id: number;
         date: string;
-        time: string;
         icon: string;
         iconClass: string;
         title: string;
         desc: string;
         status: 'success' | 'failed' | 'pending';
         user: string;
-        avatar: string;
-        avatarClass: string;
         page: number;
         type: string;
     }
 
-        interface CalendarDay {
+    interface CalendarDay {
         text: string | number;
         isHeader?: boolean;
         isEmpty?: boolean;
         isToday?: boolean;
     }
 
-    // Get current date for calendar initialization
     const now = new Date();
 
-    // Reactive variables using Svelte 5 runes
     let currentPage = $state(1);
     let itemsPerPage = $state(7);
-    let activeFilter = $state('all');
     let currentCalendarMonth = $state(now.getMonth());
     let currentCalendarYear = $state(now.getFullYear());
-    let totalActivities = $state(21);
-    let activityRange = $state('1-7');
+    let totalActivities = $state(0);
+    let activityRange = $state('0-0');
     let displayName = $state('');
     let displayInitial = $state('');
+    let displayImage = $state(''); 
     let mounted = $state(false);
     let searchQuery = $state('');
+    let productsCount = $state(0);
+    let servicesCount = $state(0);
+    let totalAdmins = $state(0);
+    let activities = $state<Activity[]>([]);
 
     const monthNames: string[] = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    const activities: Activity[] = [
-        {
-            date: '11 July 2025',
-            time: '14:30',
-            icon: 'inventory_2',
-            iconClass: 'icon-product',
-            title: 'Update produk "Layanan IT"',
-            desc: 'Modified pricing and description',
-            status: 'success',
-            user: 'Putri M.',
-            avatar: 'P',
-            avatarClass: 'avatar-putri',
-            page: 1,
-            type: 'update'
-        },
-        {
-            date: '10 July 2025',
-            time: '11:45',
-            icon: 'inventory_2',
-            iconClass: 'icon-product',
-            title: 'Update produk "Web Design"',
-            desc: 'Updated features and pricing',
-            status: 'success',
-            user: 'Sarah',
-            avatar: 'S',
-            avatarClass: 'avatar-sarah',
-            page: 1,
-            type: 'update'
-        },
-        {
-            date: '9 July 2025',
-            time: '16:20',
-            icon: 'inventory_2',
-            iconClass: 'icon-product',
-            title: 'Update produk "Digital Marketing"',
-            desc: 'Adjusted campaign details',
-            status: 'success',
-            user: 'Joseph',
-            avatar: 'J',
-            avatarClass: 'avatar-joseph',
-            page: 1,
-            type: 'update'
-        },
-        {
-            date: '8 July 2025',
-            time: '09:45',
-            icon: 'upload',
-            iconClass: 'icon-upload',
-            title: 'Upload gambar produk',
-            desc: '5 images uploaded for "Web Development"',
-            status: 'success',
-            user: 'Fattyah Kayla',
-            avatar: 'FK',
-            avatarClass: 'avatar-fattyah',
-            page: 1,
-            type: 'upload'
-        },
-        {
-            date: '7 July 2025',
-            time: '13:50',
-            icon: 'inventory_2',
-            iconClass: 'icon-product',
-            title: 'Update produk "Layanan IT"',
-            desc: 'Modified pricing and description',
-            status: 'success',
-            user: 'Annisa',
-            avatar: 'A',
-            avatarClass: 'avatar-annisa',
-            page: 1,
-            type: 'update'
-        },
-        {
-            date: '6 July 2025',
-            time: '16:45',
-            icon: 'person',
-            iconClass: 'icon-customer',
-            title: 'Edit customer data',
-            desc: 'Updated contact information',
-            status: 'failed',
-            user: 'Zalfa',
-            avatar: 'Z',
-            avatarClass: 'avatar-zalfa',
-            page: 1,
-            type: 'update'
-        },
-        {
-            date: '5 July 2025',
-            time: '10:20',
-            icon: 'upload',
-            iconClass: 'icon-upload',
-            title: 'Upload gambar produk',
-            desc: '2 images uploaded for "Web Development"',
-            status: 'success',
-            user: 'Ivan',
-            avatar: 'I',
-            avatarClass: 'avatar-ivan',
-            page: 1,
-            type: 'upload'
-        },
-        {
-            date: '4 July 2025',
-            time: '15:30',
-            icon: 'settings',
-            iconClass: 'icon-system',
-            title: 'System backup',
-            desc: 'Database backup completed successfully',
-            status: 'success',
-            user: 'Maya S.',
-            avatar: 'M',
-            avatarClass: 'avatar-maya',
-            page: 2,
-            type: 'system'
-        },
-        {
-            date: '3 July 2025',
-            time: '08:15',
-            icon: 'person',
-            iconClass: 'icon-customer',
-            title: 'Customer registration',
-            desc: 'New customer signed up for premium service',
-            status: 'success',
-            user: 'Sari N.',
-            avatar: 'S',
-            avatarClass: 'avatar-sari',
-            page: 2,
-            type: 'customer'
-        },
-        {
-            date: '2 July 2025',
-            time: '14:40',
-            icon: 'upload',
-            iconClass: 'icon-upload',
-            title: 'Upload portfolio images',
-            desc: '12 images uploaded for company gallery',
-            status: 'pending',
-            user: 'Dimas P.',
-            avatar: 'D',
-            avatarClass: 'avatar-dimas',
-            page: 2,
-            type: 'upload'
-        },
-        {
-            date: '1 July 2025',
-            time: '11:20',
-            icon: 'inventory_2',
-            iconClass: 'icon-product',
-            title: 'Update produk "Mobile App"',
-            desc: 'Updated app features and pricing structure',
-            status: 'success',
-            user: 'Lina K.',
-            avatar: 'L',
-            avatarClass: 'avatar-lina',
-            page: 2,
-            type: 'update'
-        },
-        {
-            date: '30 June 2025',
-            time: '16:30',
-            icon: 'settings',
-            iconClass: 'icon-system',
-            title: 'System maintenance',
-            desc: 'Performed routine system optimization',
-            status: 'success',
-            user: 'Maya S.',
-            avatar: 'M',
-            avatarClass: 'avatar-maya',
-            page: 2,
-            type: 'system'
-        },
-        {
-            date: '29 June 2025',
-            time: '09:45',
-            icon: 'edit',
-            iconClass: 'icon-content',
-            title: 'Update company profile',
-            desc: 'Modified about us section and contact info',
-            status: 'failed',
-            user: 'Rudi A.',
-            avatar: 'R',
-            avatarClass: 'avatar-rudi',
-            page: 2,
-            type: 'update'
-        },
-        {
-            date: '28 June 2025',
-            time: '13:10',
-            icon: 'upload',
-            iconClass: 'icon-upload',
-            title: 'Upload testimonial videos',
-            desc: '3 customer testimonial videos uploaded',
-            status: 'success',
-            user: 'Ivan',
-            avatar: 'I',
-            avatarClass: 'avatar-ivan',
-            page: 2,
-            type: 'upload'
-        },
-        {
-            date: '27 June 2025',
-            time: '12:15',
-            icon: 'edit',
-            iconClass: 'icon-content',
-            title: 'Update blog content',
-            desc: 'Published new article about digital marketing',
-            status: 'success',
-            user: 'Rudi A.',
-            avatar: 'R',
-            avatarClass: 'avatar-rudi',
-            page: 3,
-            type: 'update'
-        },
-        {
-            date: '26 June 2025',
-            time: '15:25',
-            icon: 'person',
-            iconClass: 'icon-customer',
-            title: 'Customer data export',
-            desc: 'Exported customer database for analysis',
-            status: 'success',
-            user: 'Sarah',
-            avatar: 'S',
-            avatarClass: 'avatar-sarah',
-            page: 3,
-            type: 'customer'
-        },
-        {
-            date: '25 June 2025',
-            time: '10:50',
-            icon: 'inventory_2',
-            iconClass: 'icon-product',
-            title: 'Update produk "Consulting"',
-            desc: 'Added new consulting packages and rates',
-            status: 'success',
-            user: 'Joseph',
-            avatar: 'J',
-            avatarClass: 'avatar-joseph',
-            page: 3,
-            type: 'update'
-        }
-    ];
+    async function fetchActivities(): Promise<void> {
+        try {
+            const res = await api.get('/api/activities?populate=*&sort=date:desc&pagination[pageSize]=100000');
+            console.log('API Response:', JSON.stringify(res.data, null, 2)); // Debug
+            if (!res.data.data || res.data.data.length === 0) {
+                console.warn('No activities found in API response');
+                activities = [];
+                totalActivities = 0;
+                return;
+            }
+            activities = res.data.data.map((log: any, index: number) => {
+                const username = log.users_permissions_user?.username || 'Unknown';
+                const activityRaw = log.activity?.toLowerCase() || '';
+                const contentType = activityRaw.match(/api::(\w+)\.\w+/)?.[1] || 'customer';
 
-    console.log('Activities with type upload:', activities.filter(a => a.type === 'upload'));
+                let icon = 'settings';
+                let iconClass = 'icon-system';
+                let type = 'system';
+                if (activityRaw.includes('product')) {
+                    icon = 'inventory_2';
+                    iconClass = 'icon-product';
+                    type = 'update';
+                } else if (activityRaw.includes('service')) {
+                    icon = 'settings';
+                    iconClass = 'icon-service';
+                    type = 'update';
+                } else if (activityRaw.includes('customer') || activityRaw.includes('user')) {
+                    icon = 'person';
+                    iconClass = 'icon-customer';
+                    type = 'update';
+                } else if (activityRaw.includes('about-us') || activityRaw.includes('home-setting') || activityRaw.includes('contact')) {
+                    icon = 'info';
+                    iconClass = 'icon-info';
+                    type = 'update';
+                } else if (activityRaw.includes('product-section-setting') || activityRaw.includes('service-section-setting')) {
+                    icon = 'tune';
+                    iconClass = 'icon-setting';
+                    type = 'update';
+                }
 
-    function setupUserDisplay(): void {
-        const savedUser: string | null = localStorage.getItem('userName');
-        if (savedUser) {
-            displayName = savedUser.charAt(0).toUpperCase() + savedUser.slice(1);
-            displayInitial = displayName.charAt(0).toUpperCase();
-        } else if ($userName) {
-            displayName = $userName.charAt(0).toUpperCase() + $userName.slice(1);
-            displayInitial = displayName.charAt(0).toUpperCase();
-        } else {
-            displayName = 'Admin';
-            displayInitial = 'A';
+                const dateTime = new Date(log.date);
+                const activityData = {
+                    id: log.id,
+                    date: dateTime.toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                    }),
+                    icon,
+                    iconClass,
+                    title: activityRaw ? activityRaw.charAt(0).toUpperCase() + activityRaw.slice(1) : 'Unknown activity',
+                    desc: '',
+                    status: log.activity_status?.toLowerCase() || 'pending',
+                    user: username,
+                    page: Math.ceil((index + 1) / itemsPerPage),
+                    type,
+                };
+                console.log(`Mapped Activity ${log.id}:`, JSON.stringify(activityData, null, 2)); // Debug
+                return activityData;
+            });
+            totalActivities = res.data.meta?.pagination?.total || activities.length;
+            localStorage.setItem('activities', JSON.stringify(activities));
+        } catch (error) {
+            console.error('Failed to fetch activities:', error);
+            const cached = localStorage.getItem('activities');
+            if (cached) {
+                activities = JSON.parse(cached);
+                totalActivities = activities.length;
+            } else {
+                activities = [];
+                totalActivities = 0;
+            }
         }
-        console.log('User display:', { displayName, displayInitial });
+    }
+
+    async function fetchTotalAdmins(): Promise<void> {
+        try {
+            const res = await api.get("/api/users");
+            totalAdmins = res.data.length;
+            console.log('Total admins:', totalAdmins);
+        } catch (error) {
+            console.error('Failed to fetch admin count:', error);
+            totalAdmins = 0;
+        }
+    }
+
+    async function setupUserDisplay(): Promise<void> {
+        try {
+            const res = await api.get("/api/users/me?populate=image");
+            const body = res.data;
+
+            displayName = body.username || 'Admin';
+            displayInitial = displayName.charAt(0).toUpperCase();
+
+            if (body.image && body.image.url) {
+                displayImage = body.image.url.startsWith('http')
+                    ? body.image.url
+                    : `${env.PUBLIC_BASE_URL}${body.image.url}`;
+            } else {
+                displayImage = ''; 
+            }
+
+            localStorage.setItem('userName', body.username);
+            userName.set(body.username);
+            console.log('Loaded user:', body.username, 'Image:', displayImage);
+        } catch (error) {
+            console.error('Failed to fetch user:', error);
+            const savedUser = localStorage.getItem('userName');
+
+            if (savedUser) {
+                displayName = savedUser;
+                displayInitial = displayName.charAt(0).toUpperCase();
+            } else {
+                displayName = 'Admin';
+                displayInitial = 'A';
+            }
+
+            displayImage = ''; 
+        }
+    }
+
+    async function fetchProductsCount(): Promise<void> {
+        try {
+            const res = await api.get("/api/products?pagination[limit]=0");
+            productsCount = res.data.meta?.pagination?.total || 0;
+            console.log('Products count loaded:', productsCount);
+        } catch (error) {
+            console.error('Failed to fetch products count:', error);
+            productsCount = 0;
+        }
+    }
+
+    async function fetchServicesCount(): Promise<void> {
+        try {
+            const res = await api.get("/api/services?pagination[limit]=0");
+            servicesCount = res.data.meta?.pagination?.total || 0;
+            console.log('Services count loaded:', servicesCount);
+        } catch (error) {
+            console.error('Failed to fetch services count:', error);
+            servicesCount = 0;
+        }
     }
 
     function goToSettings(): void {
@@ -317,97 +197,60 @@
     }
 
     function checkAuthentication(): boolean {
-        console.log('Checking authentication...');
-        const savedUser: string | null = localStorage.getItem('userName');
-        const savedLoginStatus: string | null = localStorage.getItem('isLoggedIn');
-        console.log('localStorage:', { userName: savedUser, isLoggedIn: savedLoginStatus });
-        console.log('store:', { userName: $userName, isLoggedIn: $isLoggedIn });
-
-        userName.set('admin');
-        isLoggedIn.set(true);
-        localStorage.setItem('userName', 'admin');
-        localStorage.setItem('isLoggedIn', 'true');
-        console.log('Authentication bypassed for debugging');
-        return true;
+        const token = localStorage.getItem('jwt');
+        if (token) {
+            userName.set('admin');
+            isLoggedIn.set(true);
+            localStorage.setItem('userName', 'admin');
+            localStorage.setItem('isLoggedIn', 'true');
+            return true;
+        }
+        return false;
     }
 
     function handleSearch(): void {
         currentPage = 1;
-        console.log('Search query updated:', searchQuery);
     }
 
     function searchActivities(activities: Activity[], query: string): Activity[] {
         if (!query.trim()) return activities;
         const searchTerm = query.toLowerCase();
-        const filtered = activities.filter(activity => 
+        return activities.filter(activity =>
             activity.title.toLowerCase().includes(searchTerm) ||
             activity.desc.toLowerCase().includes(searchTerm) ||
             activity.user.toLowerCase().includes(searchTerm) ||
             activity.date.toLowerCase().includes(searchTerm)
         );
-        console.log('Search query:', query, 'Searched activities:', filtered);
-        return filtered;
     }
 
-    function getFilteredActivities(filter: string, activities: Activity[]): Activity[] {
-        const normalizedFilter = filter.toLowerCase();
-        const filtered = activities.filter((activity: Activity) => {
-            if (normalizedFilter === 'all') return true;
-            if (normalizedFilter === 'updates') {
-                return activity.title.toLowerCase().includes('update') ||
-                       activity.title.toLowerCase().includes('edit') ||
-                       activity.desc.toLowerCase().includes('modified');
-            }
-            if (normalizedFilter === 'uploads') {
-                return activity.type === 'upload';
-            }
-            return false;
-        });
-        console.log('Filter:', normalizedFilter, 'Search query:', searchQuery, 'Filtered activities:', filtered);
-        return filtered;
+    function getVisibleActivities(page: number, filtered: Activity[]): Activity[] {
+        const start = (page - 1) * itemsPerPage;
+        return filtered.slice(start, start + itemsPerPage);
     }
 
-    function getVisibleActivities(filter: string, page: number, filtered: Activity[]): Activity[] {
-        const start: number = (page - 1) * itemsPerPage;
-        const result = filtered.slice(start, start + itemsPerPage);
-        console.log('Filter:', filter, 'Page:', page, 'Visible activities:', result);
-        return result;
-    }
-
-    function updatePagination(filter: string, page: number, filtered: Activity[]): void {
-        const visibleCount: number = filtered.length;
-        const start: number = (page - 1) * itemsPerPage + 1;
-        const end: number = Math.min(start + itemsPerPage - 1, visibleCount);
+    function updatePagination(page: number, filtered: Activity[]): void {
+        const visibleCount = filtered.length;
+        const start = (page - 1) * itemsPerPage + 1;
+        const end = Math.min(start + itemsPerPage - 1, visibleCount);
         activityRange = visibleCount > 0 ? `${start}-${end}` : '0-0';
         totalActivities = visibleCount;
-        console.log('Pagination updated:', { filter, page, activityRange, totalActivities });
-    }
-
-    function setFilter(filter: string): void {
-        console.log('Setting filter to:', filter);
-        activeFilter = filter.toLowerCase();
-        searchQuery = '';
-        currentPage = 1;
     }
 
     function setPage(page: number): void {
         if (page >= 1 && page <= maxPages) {
             currentPage = page;
-            console.log('Page set to:', page);
         }
     }
 
     function nextPage(): void {
         if (currentPage < maxPages) {
             currentPage++;
-            console.log('Next page:', currentPage);
         }
     }
 
     function prevPage(): void {
         if (currentPage > 1) {
             currentPage--;
-            console.log('Previous page:', currentPage);
         }
     }
 
@@ -420,17 +263,16 @@
             currentCalendarMonth = 11;
             currentCalendarYear--;
         }
-        console.log('Calendar updated:', { month: monthNames[currentCalendarMonth], year: currentCalendarYear });
     }
 
     function generateCalendarDays(month: number, year: number): CalendarDay[] {
-        const firstDay: number = new Date(year, month, 1).getDay();
-        const daysInMonth: number = new Date(year, month + 1, 0).getDate();
-        const today: Date = new Date(); // Set to current date
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
         const days: CalendarDay[] = [];
 
-        const dayHeaders: string[] = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-        dayHeaders.forEach((day: string) => {
+        const dayHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+        dayHeaders.forEach(day => {
             days.push({ text: day, isHeader: true });
         });
 
@@ -439,42 +281,37 @@
         }
 
         for (let day = 1; day <= daysInMonth; day++) {
-            const isToday: boolean =
+            const isToday =
                 year === today.getFullYear() &&
                 month === today.getMonth() &&
                 day === today.getDate();
             days.push({ text: day, isToday });
-            if (isToday) {
-                console.log('Today detected:', { day, month: monthNames[month], year });
-            }
         }
 
-        console.log('Generated calendar days:', days);
         return days;
     }
 
-    function handleKeyDown(e: KeyboardEvent, action: () => void): void {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            action();
-        }
-    }
-
     const searchedActivities = $derived(searchActivities(activities, searchQuery));
-    const filteredActivities = $derived(getFilteredActivities(activeFilter, searchedActivities));
-    const visibleActivities = $derived(getVisibleActivities(activeFilter, currentPage, filteredActivities));
-    const maxPages = $derived(Math.ceil(filteredActivities.length / itemsPerPage));
+    const visibleActivities = $derived(getVisibleActivities(currentPage, searchedActivities));
+    const maxPages = $derived(Math.ceil(searchedActivities.length / itemsPerPage));
     const calendarDays = $derived(generateCalendarDays(currentCalendarMonth, currentCalendarYear));
 
     $effect(() => {
-        updatePagination(activeFilter, currentPage, filteredActivities);
+        updatePagination(currentPage, searchedActivities);
     });
 
+    let intervalId: number;
+
     onMount(() => {
-        console.log('Dashboard component mounted');
         mounted = true;
         setupUserDisplay();
         checkAuthentication();
+        fetchProductsCount();
+        fetchServicesCount();
+        fetchTotalAdmins();
+        fetchActivities();
+        intervalId = setInterval(fetchActivities, 10000);
+        return () => clearInterval(intervalId);
     });
 </script>
 
@@ -485,7 +322,6 @@
 
 <div class="app flex min-h-screen bg-[#ECF6F9]">
     <div class="main-content flex-1 p-0 w-full">
-        
         <div class="header-container p-4 xl:p-5 mx-0 mb-5 w-full">
             <header class="header bg-white rounded-lg border-b border-gray-200 p-4 flex justify-between items-center xl:p-5 w-full">
                 <div class="header-left flex-1">
@@ -499,15 +335,20 @@
                             placeholder="Search" 
                             bind:value={searchQuery}
                             on:input={handleSearch}
-                            class="border-none bg-transparent outline-none focus:outline-none flex-1 text-sm xl:text-base"
-                        />
+                            class="border-none bg-transparent outline-none focus:outline-none flex-1 text-sm xl:text-base" />
                         <span class="material-symbols-outlined search-icon text-gray-500 cursor-pointer text-lg">search</span>
                     </div>
                     <div class="profile-section flex items-center gap-2 xl:gap-3">
-                        <div class="profile-avatar w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-xs">{displayInitial}</div>
-                        <div class="profile-info">
-                            <div class="profile-name font-medium text-sm text-gray-900">{displayName}</div>
-                            <div class="profile-role text-xs text-gray-500">Administrator</div>
+                        <div class="profile-avatar w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-xs overflow-hidden">
+                            {#if displayImage}  
+                                <img src={displayImage} alt={displayName} class="w-full h-full object-cover" />
+                            {:else}
+                                {displayInitial}
+                            {/if}
+                        </div>
+                        <div class="flex flex-col leading-tight">
+                            <span class="font-semibold text-gray-900 text-sm">{displayName}</span>
+                            <span class="text-xs text-gray-500">Administrator</span>
                         </div>
                         <button 
                             class="settings-btn cursor-pointer text-black hover:text-gray-700 transition-colors p-0"
@@ -525,7 +366,11 @@
         <div class="dashboard-content grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-4 p-4 xl:p-5">
             <div class="main-section flex flex-col gap-4">
                 <div class="stats-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {#each [{ icon: 'settings', number: 35, label: 'Services', desc: 'Total layanan yang tersedia' }, { icon: 'inventory_2', number: 3, label: 'Products', desc: 'Produk dalam sistem' }, { icon: 'group', number: 2, label: 'Admin', desc: 'Total pengguna admin aktif' }] as stat}
+                    {#each [
+                        { icon: 'settings', number: servicesCount, label: 'Services', desc: 'Service available' }, 
+                        { icon: 'inventory_2', number: productsCount, label: 'Products', desc: 'Products in system' }, 
+                        { icon: 'group', number: totalAdmins, label: 'Admin', desc: 'Active admins' }
+                    ] as stat}
                         <div class="stat-card relative bg-white rounded-lg p-4 shadow-sm text-center overflow-hidden">
                             <div class="stat-icon w-9 h-9 rounded-lg flex items-center justify-center mx-auto mb-2.5 text-black text-lg">
                                 <span class="material-symbols-outlined">{stat.icon}</span>
@@ -538,65 +383,45 @@
                             </div>
                         </div>
                     {/each}
-                </div>
+                </div> 
 
                 <div class="container bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div class="header-activity bg-[#2448B1] text-white p-2.5 px-4 flex justify-between items-center">
+                    <div class="header-activity bg-[#2448B1] text-white p-2.5 px-4">
                         <h1 class="text-sm font-semibold">Recent Activity</h1>
-                        <div class="filter-tabs flex gap-1">
-                            {#each ['all', 'updates', 'uploads'] as filter}
-                                <div 
-                                    class="filter-tab px-1.5 py-0.5 border border-white/30 bg-white/10 rounded-md cursor-pointer text-[10px] transition-all hover:bg-white/20"
-                                    class:active={activeFilter === filter}
-                                    on:click={() => setFilter(filter)}
-                                    on:keydown={(e) => handleKeyDown(e, () => setFilter(filter))}
-                                    role="button"
-                                    tabindex="0"
-                                >
-                                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                                </div>
-                            {/each}
-                        </div>
                     </div>
-
-                    <div class="table-header grid grid-cols-[80px_1fr_70px_80px] p-1.5 px-3 bg-gray-50 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                        <div>DATE</div>
-                        <div>ACTIVITY</div>
-                        <div>STATUS</div>
-                        <div>USER</div>
+                    <div class="table-header grid grid-cols-[120px_1fr_100px_120px] p-1.5 px-3 bg-gray-50 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                        <div class="text-left pl-2">DATE</div>
+                        <div class="text-left pl-2">ACTIVITY</div>
+                        <div class="text-left pl-2">STATUS</div>
+                        <div class="text-left pl-2">USER</div>
                     </div>
 
                     <div class="activity-list min-h-[220px]">
                         {#if visibleActivities && visibleActivities.length > 0}
-                            {#each visibleActivities as activity (activity.date + activity.time)}
-                                <div class="activity-item grid grid-cols-[80px_1fr_70px_80px] p-1.5 px-3 border-b border-gray-200 items-center hover:bg-gray-50">
-                                    <div class="date-time text-[10px] text-gray-500 flex flex-col">
+                            {#each visibleActivities as activity (activity.id + '-' + currentPage)}
+                                <div class="activity-item grid grid-cols-[120px_1fr_100px_120px] p-1.5 px-3 border-b border-gray-200 last:border-b-0 items-center hover:bg-gray-50">
+                                    <div class="date-time pl-2">
                                         <div class="date font-medium text-gray-900 text-xs">{activity.date}</div>
-                                        <div class="time text-[10px]">{activity.time}</div>
                                     </div>
-                                    <div class="activity-content flex items-center gap-1.5">
-                                        <div class="activity-icon w-5 h-5 rounded flex items-center justify-center text-xs {activity.iconClass}">
-                                            <span class="material-symbols-outlined">{activity.icon}</span>
+                                    <div class="activity-content pl-2 flex items-center gap-2">
+                                        <span class="material-symbols-outlined {activity.iconClass} text-lg">{activity.icon}</span>
+                                        <h3 class="text-xs font-semibold text-gray-900">{activity.title}</h3>
+                                    </div>
+                                    <div class="pl-2">
+                                        <div class="status-badge status-{activity.status} flex items-center gap-1 px-2 py-1 rounded text-[8px] font-medium w-10">
+                                            <div class="status-dot status-dot-{activity.status} w-1.5 h-1.5 rounded-full"></div>
+                                            <span>{activity.status.toUpperCase()}</span>
                                         </div>
-                                        <div class="activity-details">
-                                            <h3 class="text-xs font-semibold text-gray-900 mb-0.5">{activity.title}</h3>
-                                            <p class="text-[10px] text-gray-500">{activity.desc}</p>
-                                        </div>
                                     </div>
-                                    <div class="status-badge status-{activity.status} flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-medium text-center w-14">
-                                        <div class="status-dot status-dot-{activity.status} w-1 h-1 rounded-full"></div>
-                                        {activity.status ? activity.status.toUpperCase() : ''}
-                                    </div>
-                                    <div class="user-info flex items-center gap-1">
-                                        <div class="user-avatar {activity.avatarClass} w-4 h-4 rounded-full flex items-center justify-center font-semibold text-white text-[8px]">{activity.avatar}</div>
-                                        <div class="user-name text-[10px] font-medium text-gray-900">{activity.user}</div>
+                                    <div class="user-info pl-2">
+                                        <div class="user-name text-xs font-medium text-gray-900">{activity.user}</div>
                                     </div>
                                 </div>
                             {/each}
                         {:else}
                             <div class="no-results flex flex-col items-center justify-center p-8 text-gray-500 text-center">
                                 <span class="material-symbols-outlined text-3xl mb-1.5 opacity-50">search_off</span>
-                                <p class="text-xs">No activities found matching your search</p>
+                                <p class="text-xs">No recent activity</p>
                             </div>
                         {/if}
                     </div>
@@ -637,8 +462,8 @@
             </div>
             
             <div class="container">
-                <div class="sidebar-section flex flex-col gap-4">
-                    <div class="modern-calendar-widget bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="sidebar-section flex flex-col h-full">
+                    <div class="modern-calendar-widget bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full">
                         <div class="calendar-header p-4 border-b border-gray-100">
                             <div class="flex justify-between items-center">
                                 <button 
@@ -661,54 +486,31 @@
                             </div>
                         </div>
                         
-                        <div class="calendar-body p-4">
-                            <div class="calendar-weekdays grid grid-cols-7 gap-1 mb-2">
+                        <div class="calendar-body p-6 flex-1 flex flex-col">
+                            <div class="calendar-weekdays grid grid-cols-7 gap-2 mb-3">
                                 {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as day}
-                                    <div class="calendar-weekday text-center text-xs font-medium text-gray-500 py-2">
+                                    <div class="calendar-weekday text-center text-sm font-semibold text-gray-600 py-2">
                                         {day}
                                     </div>
                                 {/each}
                             </div>
                             
-                            <div class="calendar-days grid grid-cols-7 gap-1">
+                            <div class="calendar-days grid grid-cols-7 gap-2 flex-1">
                                 {#each calendarDays.slice(7) as day}
-                                    <div class="calendar-day-cell">
+                                    <div class="calendar-day-cell h-full">
                                         {#if !day.isEmpty}
                                             <button 
-                                                class="calendar-day w-full h-8 flex items-center justify-center text-sm rounded-md transition-all {day.isToday ? 'bg-[#2448B1] text-white font-semibold shadow-sm' : 'text-gray-700 hover:bg-gray-100'}"
+                                                class="calendar-day w-full h-full flex items-center justify-center text-base rounded-lg transition-all {day.isToday ? 'bg-[#2448B1] text-white font-semibold shadow-md' : 'text-gray-700 hover:bg-gray-100 font-medium'}"
                                                 type="button"
                                             >
                                                 {day.text}
                                             </button>
                                         {:else}
-                                            <div class="w-full h-8"></div>
+                                            <div class="w-full h-full"></div>
                                         {/if}
                                     </div>
                                 {/each}
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="customers-section bg-white rounded-lg p-4 shadow-sm flex flex-col items-center">
-                        <div class="customers-header flex flex-col items-center gap-1.5 mb-3 text-gray-900">
-                            <div class="custom-three-person-icon flex items-center justify-center">
-                                <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
-                                    <circle cx="6" cy="6" r="2.5"/>
-                                    <path d="M6 10c-2.5 0-4.5 2-4.5 4.5v1.5h9v-1.5C10.5 12 8.5 10 6 10z"/>
-                                    <circle cx="12" cy="6" r="2.5"/>
-                                    <path d="M12 10c-2.5 0-4.5 2-4.5 4.5v1.5h9v-1.5C16.5 12 14.5 10 12 10z"/>
-                                    <circle cx="18" cy="6" r="2.5"/>
-                                    <path d="M18 10c-2.5 0-4.5 2-4.5 4.5v1.5h9v-1.5C22.5 12 20.5 10 18 10z"/>
-                                </svg>
-                            </div>
-                            <div class="customers-title font-semibold text-base">Our Customers</div>
-                        </div>
-                        <div class="customers-grid grid grid-cols-4 gap-2 justify-items-center max-w-[300px] w-full">
-                            {#each [custbkj, custfinnet, custlintasarta, custbtn, custbri, custcaptifit, custkemnaker, custlinknet, '/assets/hotkan-logo.png', '/assets/customer-placeholder1.png', '/assets/customer-placeholder2.png', '/assets/customer-placeholder3.png', '/assets/customer-placeholder4.png', '/assets/customer-placeholder5.png', '/assets/customer-placeholder6.png', '/assets/customer-placeholder7.png'] as src, i}
-                                <div class="customer-logo aspect-square bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:border-blue-600 hover:-translate-y-0.5 hover:shadow-md p-1 shadow-sm h-16 w-16">
-                                    <img src={src} alt="Customer {i + 1}" class="customer-image w-full h-full object-contain rounded transition-transform hover:scale-105" />
-                                </div>
-                            {/each}
                         </div>
                     </div>
                 </div>
@@ -765,20 +567,20 @@
         @apply bg-blue-50 text-blue-600;
     }
 
-    .icon-content {
-        @apply bg-purple-50 text-purple-700;
+    .icon-service {
+        @apply bg-gray-50 text-gray-600;
     }
 
     .icon-customer {
         @apply bg-green-50 text-green-700;
     }
 
-    .icon-upload {
-        @apply bg-orange-50 text-orange-600;
+    .icon-info {
+        @apply bg-blue-50 text-blue-600;
     }
 
-    .icon-system {
-        @apply bg-gray-50 text-gray-600;
+    .icon-setting {
+        @apply bg-yellow-50 text-yellow-600;
     }
 
     .status-success {
@@ -786,7 +588,7 @@
     }
 
     .status-dot-success {
-        @apply bg-green-600 w-1 h-1 rounded-full aspect-square;
+        @apply bg-green-600 w-1.5 h-1.5 rounded-full aspect-square;
     }
 
     .status-pending {
@@ -794,7 +596,7 @@
     }
 
     .status-dot-pending {
-        @apply bg-yellow-500 w-1 h-1 rounded-full aspect-square;
+        @apply bg-yellow-500 w-1.5 h-1.5 rounded-full aspect-square;
     }
 
     .status-failed {
@@ -802,55 +604,11 @@
     }
 
     .status-dot-failed {
-        @apply bg-red-600 w-1 h-1 rounded-full aspect-square;
+        @apply bg-red-600 w-1.5 h-1.5 rounded-full aspect-square;
     }
 
-    .avatar-putri {
-        @apply bg-indigo-500;
-    }
-
-    .avatar-sarah {
-        @apply bg-blue-500;
-    }
-
-    .avatar-joseph {
-        @apply bg-purple-500;
-    }
-
-    .avatar-fattyah {
-        @apply bg-cyan-500;
-    }
-
-    .avatar-annisa {
-        @apply bg-green-500;
-    }
-
-    .avatar-zalfa {
-        @apply bg-yellow-500;
-    }
-
-    .avatar-ivan {
-        @apply bg-red-500;
-    }
-
-    .avatar-maya {
-        @apply bg-pink-500;
-    }
-
-    .avatar-rudi {
-        @apply bg-lime-500;
-    }
-
-    .avatar-sari {
-        @apply bg-orange-500;
-    }
-
-    .avatar-dimas {
-        @apply bg-lime-500;
-    }
-
-    .avatar-lina {
-        @apply bg-teal-500;
+    .status-badge {
+        @apply flex items-center gap-1 px-2 py-1 rounded text-[8px] font-medium w-[62px] justify-start;
     }
 
     .material-symbols-outlined {
@@ -887,7 +645,6 @@
         @apply bg-white/30 border-white;
     }
 
-    
     @media (max-width: 1440px) {
         .header-container {
             @apply p-4 mx-0 mb-4;
@@ -910,17 +667,11 @@
         .stat-number {
             @apply text-xl;
         }
-        .customers-grid {
-            @apply max-w-[280px] gap-1.5;
-        }
-        .customer-logo {
-            @apply h-14 w-14;
-        }
         .calendar-header {
             @apply p-3;
         }
         .calendar-body {
-            @apply p-3;
+            @apply p-5;
         }
     }
 
@@ -955,35 +706,20 @@
         .activity-list {
             @apply min-h-[200px];
         }
-        .customers-section {
-            @apply p-3.5;
-        }
-        .customers-header {
-            @apply gap-1 mb-2.5;
-        }
-        .customers-title {
-            @apply text-sm;
-        }
-        .customers-grid {
-            @apply max-w-[260px] gap-1.5;
-        }
-        .customer-logo {
-            @apply h-12 w-12 p-0.75;
-        }
-        .custom-three-person-icon svg {
-            @apply w-8 h-8;
-        }
         .calendar-header {
             @apply p-3;
         }
         .calendar-body {
-            @apply p-3;
+            @apply p-4;
         }
         .calendar-title {
             @apply text-sm;
         }
         .calendar-nav {
             @apply w-7 h-7;
+        }
+        .calendar-weekday {
+            @apply py-1.5 text-[10px];
         }
     }
 
@@ -1021,41 +757,20 @@
         .activity-list {
             @apply min-h-[180px];
         }
-        .customers-section {
-            @apply p-3;
-        }
-        .customers-header {
-            @apply gap-1 mb-2;
-        }
-        .customers-title {
-            @apply text-xs;
-        }
-        .customers-grid {
-            @apply grid-cols-4 max-w-[240px] gap-1.5;
-        }
-        .customer-logo {
-            @apply h-11 w-11 p-0.75;
-        }
-        .custom-three-person-icon svg {
-            @apply w-7 h-7;
-        }
         .calendar-header {
             @apply p-2.5;
         }
         .calendar-body {
-            @apply p-2.5;
+            @apply p-3;
         }
         .calendar-title {
-            @apply text-sm;
+            @apply text-xs;
         }
         .calendar-nav {
             @apply w-6 h-6;
         }
         .calendar-weekday {
-            @apply py-1.5 text-[10px];
-        }
-        .calendar-day {
-            @apply h-7 text-xs;
+            @apply py-1 text-[9px];
         }
     }
 
@@ -1084,29 +799,11 @@
         .activity-item {
             @apply grid-cols-[60px_1fr_60px_70px] p-1 px-2;
         }
-        .customers-section {
-            @apply p-2.5;
-        }
-        .customers-header {
-            @apply gap-1 mb-2;
-        }
-        .customers-title {
-            @apply text-xs;
-        }
-        .customers-grid {
-            @apply max-w-[220px] gap-1;
-        }
-        .customer-logo {
-            @apply h-10 w-10 p-0.5;
-        }
-        .custom-three-person-icon svg {
-            @apply w-6 h-6;
-        }
         .calendar-header {
             @apply p-2;
         }
         .calendar-body {
-            @apply p-2;
+            @apply p-3;
         }
         .calendar-title {
             @apply text-xs;
@@ -1115,10 +812,7 @@
             @apply w-6 h-6;
         }
         .calendar-weekday {
-            @apply py-1 text-[10px];
-        }
-        .calendar-day {
-            @apply h-6 text-[10px];
+            @apply py-1 text-[9px];
         }
     }
 
@@ -1135,6 +829,9 @@
         .search-box {
             @apply w-48 h-7;
         }
+        .dashboard-content {
+            @apply p-2 gap-2;
+        }
         .stats-grid {
             @apply grid-cols-2 gap-2;
         }
@@ -1150,29 +847,11 @@
         .activity-details p {
             @apply text-[9px];
         }
-        .customers-section {
-            @apply p-2;
-        }
-        .customers-header {
-            @apply gap-0.75 mb-1.5;
-        }
-        .customers-title {
-            @apply text-[11px];
-        }
-        .customers-grid {
-            @apply grid-cols-3 max-w-[200px] gap-1;
-        }
-        .customer-logo {
-            @apply h-10 w-10 p-0.5;
-        }
-        .custom-three-person-icon svg {
-            @apply w-6 h-6;
-        }
         .calendar-header {
             @apply p-2;
         }
         .calendar-body {
-            @apply p-2;
+            @apply p-2.5;
         }
         .calendar-title {
             @apply text-xs;
@@ -1182,9 +861,6 @@
         }
         .calendar-weekday {
             @apply py-1 text-[9px];
-        }
-        .calendar-day {
-            @apply h-6 text-[9px];
         }
     }
 
@@ -1222,26 +898,14 @@
         .activity-content {
             @apply gap-1;
         }
-        .activity-icon {
-            @apply w-4 h-4 text-[10px];
-        }
         .activity-details h3 {
             @apply text-[10px];
         }
-        .activity-details p {
-            @apply text-[8px];
-        }
         .status-badge {
-            @apply px-1 py-0.5 w-12 text-[7px];
+            @apply px-1 py-0.5 w-10 text-[7px];
         }
         .status-dot {
             @apply w-0.75 h-0.75 rounded-full aspect-square;
-        }
-        .user-info {
-            @apply gap-0.5;
-        }
-        .user-avatar {
-            @apply w-3.5 h-3.5 text-[7px];
         }
         .user-name {
             @apply text-[9px];
@@ -1264,29 +928,11 @@
         .page-btn {
             @apply px-1 py-0.5 text-[8px] rounded-md;
         }
-        .customers-section {
-            @apply p-2;
-        }
-        .customers-header {
-            @apply gap-0.5 mb-1;
-        }
-        .customers-title {
-            @apply text-[10px];
-        }
-        .customers-grid {
-            @apply grid-cols-3 gap-1 max-w-[180px];
-        }
-        .customer-logo {
-            @apply h-9 w-9 p-0.5;
-        }
-        .custom-three-person-icon svg {
-            @apply w-5 h-5;
-        }
         .calendar-header {
             @apply p-1.5;
         }
         .calendar-body {
-            @apply p-1.5;
+            @apply p-2;
         }
         .calendar-title {
             @apply text-[10px];
@@ -1299,9 +945,6 @@
         }
         .calendar-weekday {
             @apply py-0.5 text-[8px];
-        }
-        .calendar-day {
-            @apply h-5 text-[8px];
         }
     }
 </style>

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { env } from '$env/dynamic/public'; 
+  import api from '$lib/axios-instance'; 
   import { onMount } from 'svelte';
   
   interface Service {
@@ -26,148 +28,103 @@
   onMount(() => {
   loadServices();
   loadSectionSettings();
-});
-
-async function loadServices() {
-  const token = localStorage.getItem("accessToken");
-  const res = await fetch("http://localhost:1337/api/services?populate=image", {
-    headers: {
-      "Authorization": "Bearer " + token
-    }
   });
-  const body = await res.json();
-  console.log("Services Response:", body);
 
-  services = body.data.map((e: any) => ({
-    id: e.documentId,
-    type: e.service_name,
-    description: e.description || "",
-    image: e.image ? "http://localhost:1337" + e.image.url : null
-  }));
-}
+  async function loadServices() { 
+    const response = await api.get('/api/services?populate=image')
+    services = response.data.data.map((e: any) => ({
+      id: e.documentId,
+      type: e.service_name,
+      description: e.description || "",
+        image: e.image ? env.PUBLIC_BASE_URL + e.image.url : null
+    }));
+  } 
  
-async function loadSectionSettings() {
-  const token = localStorage.getItem("accessToken");
-  const res = await fetch("http://localhost:1337/api/service-section-setting", {
-    headers: {
-      "Authorization": "Bearer " + token
-    }
-  });
-  const body = await res.json();
-  console.log("Section Settings Response:", body);
+  async function loadSectionSettings() { 
+    const {data: body} = await api.get("/api/service-section-setting");
 
-  sectionTitle = body.data.title;
-  sectionDescription = body.data.description.map((p: any) => p.children.map((c: any) => c.text).join(" ")).join("\n\n");
-
-}
- // Function to upload image to Strapi
-  async function uploadImageToStrapi(file: File): Promise<any> {
-    const token = localStorage.getItem("accessToken");
-    const formData = new FormData();
-    formData.append('files', file);
-
-    const response = await fetch("http://localhost:1337/api/upload", {
-      method: 'POST',
-      headers: {
-        "Authorization": "Bearer " + token
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    const result = await response.json();
-    return result[0]; 
+    sectionTitle = body.data.title;
+    sectionDescription = body.data.description.map((p: any) => p.children.map((c: any) => c.text).join(" ")).join("\n\n");
   }
+
+ // Function to upload image to Strapi 
+  async function uploadImageToStrapi(file: File): Promise<any> {
+    try {
+      const formData = new FormData();
+      formData.append('files', file);
+
+      const response = await api.post("/api/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      return response.data[0]; 
+    } catch (error: any) {
+      if (error.response) {
+        console.error("Upload gagal:", error.response.data);
+        alert(`Upload gagal: ${error.response.data.error?.message || "Unknown error"}`);
+      } else {
+        console.error("Error:", error.message);
+        alert("Terjadi error: " + error.message);
+      }
+      throw error; 
+    }
+  }
+
 
   // Function to create services in Strapi 
   async function createServicesInStrapi(servicesData: any): Promise<any> {
-    const token = localStorage.getItem("accessToken");
-    
-    const response = await fetch("http://localhost:1337/api/services", {
-      method: 'POST',
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        data: servicesData
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create services');
+    try {
+      const response = await api.post("/api/services", { data: servicesData });
+      return response.data;
+    } catch (error) {
+      console.error("Error create service:", error);
+      alert("Failed to create service");
+      throw error;
     }
-
-    return await response.json();
   }
 
-// Function to update services in Strapi
+
+  // Function to update services in Strapi
   async function updateServicesInStrapi(servicesId: string, servicesData: any): Promise<any> {
-    const token = localStorage.getItem("accessToken");
-    
-    const response = await fetch(`http://localhost:1337/api/services/${servicesId}`, {
-      method: 'PUT',
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        data: servicesData
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update services');
+    try {
+      const response = await api.put(`/api/services/${servicesId}`, { data: servicesData });
+      return response.data;
+    } catch (error) {
+      console.error("Error update service:", error);
+      alert("Failed to update service");
+      throw error;
     }
-
-    return await response.json();
   }
 
     // Function to delete services from Strapi
-  async function deleteservicesFromStrapi(servicesId: string): Promise<void> {
-    const token = localStorage.getItem("accessToken");
-    
-    const response = await fetch(`http://localhost:1337/api/services/${servicesId}`, {
-      method: 'DELETE',
-      headers: {
-        "Authorization": "Bearer " + token
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete services');
+    async function deleteservicesFromStrapi(servicesId: string): Promise<void> {
+    try {
+      await api.delete(`/api/services/${servicesId}`);
+    } catch (error) {
+      console.error("Error delete service:", error);
+      alert("Failed to delete service");
+      throw error;
     }
   }
 
-   // Function to update section settings in Strapi
-  async function updateSectionSettingsInStrapi(): Promise<void> {
-    const token = localStorage.getItem("accessToken");
-    
-    // Convert description back to rich text format
-    const descriptionBlocks = sectionDescription.split('\n\n').map(paragraph => ({
-      type: 'paragraph',
-      children: [{ type: 'text', text: paragraph }]
-    }));
+    // Function to update section settings in Strapi
+    async function updateSectionSettingsInStrapi(): Promise<void> {
+    try {
+      const descriptionBlocks = sectionDescription.split("\n\n").map((paragraph) => ({
+        type: "paragraph",
+        children: [{ type: "text", text: paragraph }],
+      }));
 
-    const response = await fetch("http://localhost:1337/api/services-section-setting", {
-      method: 'PUT',
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
+      await api.put("/api/service-section-setting", {
         data: {
           title: sectionTitle,
-          description: descriptionBlocks
-        }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update section settings');
+          description: descriptionBlocks,
+        },
+      });
+    } catch (error) {
+      console.error("Error update section settings:", error);
+      alert("Failed to update section settings");
+      throw error;
     }
   }
 
@@ -187,6 +144,7 @@ async function loadSectionSettings() {
     newServiceName = service.type;
     newServiceDescription = service.description;
     imagePreviewUrl = service.image;
+    newServiceImage = null; 
     showAddServiceModal = true;
   }
   
@@ -228,7 +186,7 @@ async function loadSectionSettings() {
   
   function handleImageUpload(event: Event): void {
     const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
+    const file = target.files?.[0]; 
     
     if (file) {
       
@@ -257,38 +215,40 @@ async function loadSectionSettings() {
     }
   }
   
- async function saveService(): Promise<void> {
-  if (!newServiceName.trim() || !newServiceDescription.trim()) {
-    alert('Please fill in all fields');
-    return;
-  }
+  async function saveService(): Promise<void> {
+    if (!newServiceName.trim() || !newServiceDescription.trim()) {
+      alert('Please fill in all fields');
+      return;
+    }
 
-  let imageId: number | null = null;
-  if (newServiceImage?.files?.[0]) {
-    const uploadedImage = await uploadImageToStrapi(newServiceImage.files[0]);
-    imageId = uploadedImage.id;
-  }
-
-  if (editingService) {
-    // UPDATE
-    await updateServicesInStrapi(editingService.id.toString(), {
+    const serviceData: any = {
       service_name: newServiceName,
       description: newServiceDescription,
-      image: imageId
-    });
-  } else {
-    // CREATE
-    await createServicesInStrapi({
-      service_name: newServiceName,
-      description: newServiceDescription,
-      image: imageId
-    });
+    };
+
+    // Hanya upload & set image kalau user pilih file baru
+    if (newServiceImage?.files?.[0]) {
+      const uploadedImage = await uploadImageToStrapi(newServiceImage.files[0]);
+      serviceData.image = uploadedImage.id;
+    }
+
+    if (editingService) {
+      // UPDATE
+      await updateServicesInStrapi(editingService.id.toString(), serviceData);
+    } else {
+      // CREATE
+      if (newServiceImage?.files?.[0]) {
+        const uploadedImage = await uploadImageToStrapi(newServiceImage.files[0]);
+        serviceData.image = uploadedImage.id;
+      }
+      await createServicesInStrapi(serviceData);
+    }
+
+    await loadServices();
+    closeModal();
+    showSuccessModal = true;
   }
 
-  await loadServices();
-  closeModal();
-  showSuccessModal = true;
-}
 
   
 async function saveChanges(): Promise<void> {

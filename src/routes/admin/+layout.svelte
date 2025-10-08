@@ -3,29 +3,106 @@
   import { goto, afterNavigate, beforeNavigate } from '$app/navigation';
   import { writable } from 'svelte/store';
   import { onMount, tick } from 'svelte';
-  import { userName, userEmail, logoutUser } from '../../lib/store'; 
+  import { userName, userEmail, logoutUser } from '../../lib/store';
+  import api from '$lib/axios-instance';
+  import { env } from '$env/dynamic/public';
   
   export const sidebarOpen = writable<boolean>(true);
-  
+   
   $: sidebarIsOpen = $sidebarOpen;
   $: currentPath = $page.url.pathname;
-  let forceUpdate = 0; 
-  let displayName = '';
-  let displayEmail = '';
   
+  let displayName = 'Admin';
+  let displayEmail = 'admin@example.com';
+  let displayAvatar = '/api/placeholder/40/40';
+  let forceUpdate = 0;
+  let isLoadingUser = false;
+  
+  //  FETCH USER DATA FROM API
+  async function fetchUserData() {
+    if (isLoadingUser) return; 
+    
+    try {
+      isLoadingUser = true;
+      console.log(' Fetching user data from API...');
+      
+      const res = await api.get("/api/users/me?populate=image");
+      const userData = res.data;
+      
+      console.log(' User data fetched:', userData);
+      
+      // Update state
+      displayName = userData.username 
+        ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) 
+        : 'Admin';
+      displayEmail = userData.email || 'admin@example.com';
+      displayAvatar = userData.image 
+        ? env.PUBLIC_BASE_URL + userData.image.url 
+        : '/api/placeholder/40/40';
+      
+      // Update stores
+      userName.set(userData.username || 'Admin');
+      userEmail.set(userData.email || 'admin@example.com');
+      
+      // Update localStorage sebagai backup
+      localStorage.setItem('userName', userData.username || 'Admin');
+      localStorage.setItem('userEmail', userData.email || 'admin@example.com');
+      if (userData.image) {
+        localStorage.setItem('userAvatar', env.PUBLIC_BASE_URL + userData.image.url);
+      }
+      
+      forceUpdate++;
+      console.log(' User display:', { displayName, displayEmail, displayAvatar });
+      
+    } catch (error) {
+      console.error(' Failed to fetch user data:', error);
+      
+      // Fallback ke localStorage jika API error
+      const savedUser = localStorage.getItem('userName');
+      const savedEmail = localStorage.getItem('userEmail');
+      const savedAvatar = localStorage.getItem('userAvatar');
+      
+      if (savedUser) displayName = savedUser.charAt(0).toUpperCase() + savedUser.slice(1);
+      if (savedEmail) displayEmail = savedEmail;
+      if (savedAvatar) displayAvatar = savedAvatar;
+      
+    } finally {
+      isLoadingUser = false;
+    }
+  }
+
   onMount(() => {
     if (typeof window !== 'undefined') {
       const savedState = localStorage.getItem('sidebarOpen');
       const initialState = savedState !== null ? savedState === 'true' : true;
       sidebarOpen.set(initialState);
-      console.log('Initial sidebar state:', initialState);
-      
-      const savedUser = localStorage.getItem('userName');
-      const savedEmail = localStorage.getItem('userEmail');
-      displayName = savedUser || $userName || 'Admin';
-      displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
-      displayEmail = savedEmail || $userEmail || 'admin@example.com';
-      console.log('User display:', { displayName, displayEmail });
+
+      // Fetch user data on mount
+      fetchUserData();
+
+      //  Listen to custom event dari settings page
+      const handleCustomUpdate = (e: Event) => {
+        console.log(' Custom event received! Refreshing user data...');
+        setTimeout(() => {
+          fetchUserData(); // Re-fetch from API
+        }, 100);
+      };
+
+      //  Listen to storage changes (for multi-tab sync)
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'userName' || e.key === 'userEmail' || e.key === 'userAvatar') {
+          console.log(' Storage changed, refreshing user data...');
+          fetchUserData();
+        }
+      };
+
+      window.addEventListener('userDataUpdated', handleCustomUpdate);
+      window.addEventListener('storage', handleStorageChange);
+
+      return () => {
+        window.removeEventListener('userDataUpdated', handleCustomUpdate);
+        window.removeEventListener('storage', handleStorageChange);
+      };
     }
   });
 
@@ -35,6 +112,12 @@
 
   afterNavigate(async () => {
     console.log('After navigate - new path:', $page.url.pathname);
+    
+    //  Re-fetch user data setelah navigasi (misal dari settings)
+    if ($page.url.pathname === '/admin' || $page.url.pathname.startsWith('/admin/')) {
+      fetchUserData();
+    }
+    
     await tick();
     forceUpdate++;
   });
@@ -42,20 +125,16 @@
   $: {
     if ($page?.url?.pathname) {
       console.log('Page store updated:', $page.url.pathname);
-     
-      forceUpdate++;
     }
   }
 
-  
   sidebarOpen.subscribe(value => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebar Open', value.toString());
+      localStorage.setItem('sidebarOpen', value.toString());
       console.log('Sidebar state saved:', value);
     }
   });
 
-  
   let showLogoutModal = false;
   let showSuccessModal = false;
 
@@ -65,7 +144,10 @@
   }
 
   function handleLogout(): void {
-    showLogoutModal = true;
+    //  Refresh user data sebelum show modal
+    fetchUserData().then(() => {
+      showLogoutModal = true;
+    });
   }
 
   function confirmLogout(): void {
@@ -84,17 +166,14 @@
     goto('/login').catch(err => console.error('Navigation error:', err));
   }
 
-  
   function isActive(path: string): boolean {
     const current = currentPath || $page?.url?.pathname || '';
-    console.log(`Checking active state - Path: ${path}, Current: ${current}, Force update: ${forceUpdate}`);
     
     if (path === '/admin') {
       return current === '/admin';
     }
     return current.startsWith(path) && current !== '/admin';
   }
-  
   
   function handleModalBackdropClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
@@ -109,7 +188,6 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
 </svelte:head>
-
 
 {#key forceUpdate}
 <div class="flex min-h-screen bg-[#2448B1] font-['Inter'] relative overflow-hidden">
@@ -180,7 +258,6 @@
     </div>
   </aside>
 
-
   <main class="flex-1 min-h-screen bg-[#ECF6F9] transition-all duration-300 {sidebarIsOpen ? 'ml-[200px] w-[calc(100%-200px)]' : 'ml-[50px] w-[calc(100%-50px)]'} max-lg:ml-0 max-lg:w-full">
     <button class="lg:hidden fixed top-4 left-4 z-[1001] bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors" on:click={toggleSidebar}>
       <span class="icon-wrapper">
@@ -191,7 +268,6 @@
   </main>
 </div>
 {/key}
-
 
 {#if showLogoutModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] backdrop-blur-sm" on:click={handleModalBackdropClick} role="dialog" aria-modal="true">
@@ -205,11 +281,24 @@
 
       <div class="bg-gray-100 rounded-lg p-4 flex items-center gap-3 mb-4 text-left">
         <div class="w-12 h-12 rounded-full overflow-hidden shrink-0">
-          <img src="https://images.unsplash.com/photo-1494790108755-2616b612b098?w=40&h=40&fit=crop&crop=face" alt="User Avatar" class="w-full h-full object-cover" />
+          {#if isLoadingUser}
+            <div class="w-full h-full bg-gray-300 animate-pulse"></div>
+          {:else}
+            <img
+              src={displayAvatar}
+              alt="User Avatar"
+              class="w-full h-full object-cover"
+            />
+          {/if}
         </div>
         <div class="flex-1">
-          <div class="text-base font-semibold text-gray-900 mb-0.5">{displayName}</div>
-          <div class="text-sm text-gray-500">{displayEmail}</div>
+          {#if isLoadingUser}
+            <div class="h-4 bg-gray-300 rounded animate-pulse mb-2"></div>
+            <div class="h-3 bg-gray-200 rounded animate-pulse w-3/4"></div>
+          {:else}
+            <div class="text-base font-semibold text-gray-900 mb-0.5">{displayName}</div>
+            <div class="text-sm text-gray-500">{displayEmail}</div>
+          {/if}
         </div>
       </div>
 
@@ -224,7 +313,6 @@
     </div>
   </div>
 {/if}
-
 
 {#if showSuccessModal}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] backdrop-blur-sm" role="dialog" aria-modal="true">
@@ -259,24 +347,6 @@
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
   }
 
-  
-  :global(.material-symbols-outlined) {
-    font-family: 'Material Symbols Outlined';
-    font-weight: normal;
-    font-style: normal;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    text-transform: none;
-    letter-spacing: normal;
-    word-wrap: normal;
-    white-space: nowrap;
-    direction: ltr;
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-  }
-
-  
   .icon-wrapper {
     display: flex;
     align-items: center;
@@ -287,7 +357,6 @@
     transition: all 0.3s ease;
   }
 
-  
   .nav-icon {
     width: 20px !important;
     height: 20px !important;
@@ -295,101 +364,11 @@
     color: currentColor;
   }
 
- 
   .nav-text-item {
     transition: all 0.3s ease;
     white-space: nowrap;
   }
 
-
-  .nav-icon-svg {
-    width: 20px;
-    height: 20px;
-    color: currentColor;
-  }
-
-
-  .icon-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-  }
-
-  
-  .nav-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    color: white;
-    text-decoration: none;
-    border-left: 3px solid transparent;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    gap: 12px;
-  }
-
-  .nav-item.collapsed {
-    justify-content: center;
-    gap: 0;
-  }
-
-  .nav-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .nav-item.active {
-    background-color: rgba(255, 255, 255, 0.15);
-    border-left-color: #60a5fa;
-  }
-
-  
-  .nav-text {
-    transition: all 0.3s ease;
-    white-space: nowrap;
-  }
-
-  .nav-text.visible {
-    opacity: 1;
-    width: auto;
-  }
-
-  .nav-text.hidden {
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
-  }
-
- 
-  .logout-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 14px;
-    transition: background-color 0.2s ease;
-    gap: 12px;
-  }
-
-  .logout-btn.collapsed {
-    justify-content: center;
-    gap: 0;
-  }
-
-  .logout-btn:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
-
-  
   aside {
     transition: width 0.3s ease, transform 0.3s ease;
   }
@@ -398,11 +377,19 @@
     transition: margin-left 0.3s ease, width 0.3s ease;
   }
 
-  
   html, body {
     margin: 0;
     padding: 0;
     height: 100%;
     overflow-x: hidden;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 </style>

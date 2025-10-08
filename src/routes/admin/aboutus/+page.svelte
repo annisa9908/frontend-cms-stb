@@ -1,182 +1,128 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { env } from '$env/dynamic/public';
+  import api from '$lib/axios-instance';
 
-  // bikin tipe data buat customer
+  // Define customer type
   interface Customer {
     id: string;
     image: File | null;
     imagePreview: string | null;
   }
-  
-  //variabel untuk nyimpan data
-  let id = $state(''); //id halaman about us
-  let title = $state(''); //judul halaman
-  let description = $state(''); //deskripsi halaman
-  let customers = $state<Customer[]>([]); //daftar customer
-  let showAddCustomerModal = $state(false); // tambah customer
-  let showSuccessModal = $state(false); // sukses
-  let showDeleteModal = $state(false); // hapus
-  let customerToDelete = $state(''); // id customer yg mau dihapus
-  let newCustomer = $state<Customer>({ id: '', image: null, imagePreview: null }); //data customer baru
-  let isLoading = $state(false); // loading state
+   
+  // State variables
+  let id = $state(''); 
+  let title = $state(''); 
+  let description = $state(''); 
+  let customers = $state<Customer[]>([]); 
+  let showAddCustomerModal = $state(false); 
+  let showSuccessModal = $state(false); 
+  let showDeleteModal = $state(false); 
+  let customerToDelete = $state(''); 
+  let newCustomer = $state<Customer>({ id: '', image: null, imagePreview: null }); 
+  let isLoading = $state(false); 
 
-
-  //halaman ketika dibuka 
+  // Load data on mount
   onMount(async () => {
-    await loadAboutUs(); // untuk mengambil data about us
-    await loadCustomer(); // untuk mengambil data customer
-});
+    await loadAboutUs();
+    await loadCustomer();
+  });
 
-
-//untuk mengambil data aboutus dari server
-async function loadAboutUs() {
-  try {
-    const token = localStorage.getItem("accessToken"); //mengambil token untuk auth
-    const response = await fetch("http://localhost:1337/api/about-us", {
-      headers: {
-        "Authorization": "Bearer " + token
+  // Load About Us data
+  async function loadAboutUs() {
+    try {
+      const response = await api.get('/api/about-us');
+      
+      if (response.data?.data) {
+        id = response.data.data.documentId || generateUniqueId();
+        title = response.data.data.title || '';
+        description = response.data.data.description?.[0]?.children?.[0]?.text || '';
+      } else {
+        console.warn('No data returned from about-us API');
+        id = generateUniqueId();
+        title = '';
+        description = '';
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to load about us data');
+    } catch (error: any) {
+      console.error('Error loading about us:', error);
+      alert('Error loading about us data. Please try again.');
+      id = generateUniqueId();
+      title = '';
+      description = '';
     }
-    
-    const body = await response.json();
-    // Pastikan data ada sebelum mengisi
-    if (body.data) {
-      id = body.data.documentId || generateUniqueId(); //simpan id, generate jika kosong
-      title = body.data.title || ''; // simpan judul
-      description = body.data.description?.[0]?.children?.[0]?.text || ''; // simpan deskripsi
-    } else {
-      console.warn('No data returned from about-us API');
-      id = generateUniqueId(); // Generate ID jika data kosong
-      title = ''; // Reset jika tidak ada data
-      description = ''; // Reset jika tidak ada data
-    }
-  } catch (error: any) {
-    console.error('Error loading about us:', error);
-    alert('Error loading about us data. Please try again.');
-    id = generateUniqueId(); // Generate ID sebagai fallback
-    title = ''; // Reset sebagai fallback
-    description = ''; // Reset sebagai fallback
   }
-}
 
-//mengambil data customer dari server
-async function loadCustomer() {
-  try {
-    const token = localStorage.getItem("accessToken"); // ambil token
-    const response = await fetch("http://localhost:1337/api/customers?populate=*", {
-      headers: {
-        "Authorization": "Bearer " + token
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to load customers');
+  // Load customers data
+  async function loadCustomer() {
+    try {
+      const response = await api.get('/api/customers?populate=*');
+      
+      customers = response.data.data.map((e: any) => ({
+        id: e.documentId,
+        image: null,
+        imagePreview: e.logo_customer?.length > 0 ? `${env.PUBLIC_BASE_URL}${e.logo_customer[0].url}` : null
+      }));
+    } catch (error: any) {
+      console.error('Error loading customers:', error);
+      alert('Error loading customers. Please try again.');
     }
-    
-    const body = await response.json();
-    customers = body.data.map((e: any) => ({
-      id: e.documentId,
-      image: null,
-      imagePreview: e.logo_customer?.length > 0 ? "http://localhost:1337" + e.logo_customer[0].url : null
-    }));
-  } catch (error: any) {
-    console.error('Error loading customers:', error);
-    alert('Error loading customers. Please try again.');
   }
-};
-  
-  //mengarahkan kehalaman dashboard
+
+  // Navigate to dashboard
   function goToDashboardSetting() {
     goto('/admin/dashboard-setting');
   }
 
- // membuat id customer 
+  // Generate unique ID
   function generateUniqueId(): string {
     return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
   }
 
-  //menyimpan perubahan ke server
+  // Save changes
   async function saveChanges() {
     if (isLoading) return;
     
-    const token = localStorage.getItem("accessToken");
     isLoading = true;
     
     try {
       if (!id) {
-        id = generateUniqueId(); // Generate ID jika belum ada
+        id = generateUniqueId();
       }
 
-      // Update About Us dengan PUT
-const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
-  method: 'PUT',
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    data: {
-      title: title,
-      description: [
-        {
-          type: 'paragraph',
-          children: [{ type: 'text', text: description }]
+      // Update About Us
+      await api.put('/api/about-us', {
+        data: {
+          title: title,
+          description: [
+            {
+              type: 'paragraph',
+              children: [{ type: 'text', text: description }]
+            }
+          ]
         }
-      ]
-    }
-  })
-});
+      });
 
-      if (!aboutUsResponse.ok) {
-        throw new Error(`Failed to update about us: ${aboutUsResponse.statusText}`);
-      }
-
-      // simpan customers dengan gambar
+      // Save customers with images
       for (const customer of customers) {
         if (customer.image) {
-          // Upload gambar jika ada file baru
           const formData = new FormData();
           formData.append('files', customer.image);
         
-          const uploadResponse = await fetch('http://localhost:1337/api/upload', {
-            method: 'POST',
+          const uploadResponse = await api.post('/api/upload', formData, {
             headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            body: formData
+              'Content-Type': 'multipart/form-data'
+            }
           });
           
-          if (!uploadResponse.ok) {
-            throw new Error('Failed to upload image');
-          }
-          
-          const uploadResult = await uploadResponse.json();
-          
-          if (uploadResult.length > 0) {
-            const imageId = uploadResult[0].id;
+          if (uploadResponse.data.length > 0) {
+            const imageId = uploadResponse.data[0].id;
             
-            // Update customer dengan gambar
-            const customerResponse = await fetch(`http://localhost:1337/api/customers/${customer.id}`, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                data: {
-                  logo_customer: [imageId]
-                }
-              })
+            await api.put(`/api/customers/${customer.id}`, {
+              data: {
+                logo_customer: imageId
+              }
             });
-
-            if (!customerResponse.ok) {
-              throw new Error('Failed to update customer');
-            }
           }
         }
       }
@@ -184,43 +130,38 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
       showSuccessModal = true;
       setTimeout(() => {
         showSuccessModal = false;
-        // Reload data setelah berhasil simpan
-        loadAboutUs(); // Reload about us data to ensure consistency
+        loadAboutUs();
         loadCustomer();
       }, 2000);
       
     } catch (error: any) {
       console.error('Error saving changes:', error);
-      alert('Error saving changes: ' + (error?.message || 'Unknown error. Please check backend configuration or contact support.'));
+      alert('Error saving changes: ' + (error?.response?.data?.message || error?.message || 'Unknown error'));
     } finally {
       isLoading = false;
     }
   }
 
-  
   function openAddCustomerModal() {
     newCustomer = { id: generateUniqueId(), image: null, imagePreview: null };
     showAddCustomerModal = true;
   }
-
 
   function closeAddCustomerModal() {
     showAddCustomerModal = false;
     newCustomer = { id: '', image: null, imagePreview: null };
   }
 
-  
   function closeSuccessModal() {
     showSuccessModal = false;
   }
 
-  
   function closeDeleteModal() {
     showDeleteModal = false;
     customerToDelete = '';
   }
 
-  // Simpan customer baru ke database - DIPERBAIKI
+  // Save new customer
   async function saveNewCustomer() {
     if (!newCustomer.image) {
       alert('Please upload a customer image.');
@@ -229,65 +170,32 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
     
     if (isLoading) return;
     
-    const token = localStorage.getItem("accessToken");
     isLoading = true;
     
     try {
-      // Upload gambar terlebih dahulu
       const formData = new FormData();
       formData.append('files', newCustomer.image);
       
-      const uploadResponse = await fetch('http://localhost:1337/api/upload', {
-        method: 'POST',
+      const uploadResponse = await api.post('/api/upload', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+          'Content-Type': 'multipart/form-data'
+        }
       });
       
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Upload failed: ${errorText}`);
-      }
-      
-      const uploadResult = await uploadResponse.json();
-      
-      if (uploadResult && uploadResult.length > 0) {
-        const imageId = uploadResult[0].id;
+      if (uploadResponse.data && uploadResponse.data.length > 0) {
+        const imageId = uploadResponse.data[0].id;
         
-        // Buat customer baru dengan gambar
-        const customerData = {
+        const customerResponse = await api.post('/api/customers', {
           data: {
-            logo_customer: [imageId]
+            logo_customer: imageId
           }
-        };
-
-        console.log('Creating customer with data:', customerData);
-        
-        const customerResponse = await fetch('http://localhost:1337/api/customers', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(customerData)
         });
         
-        if (!customerResponse.ok) {
-          const errorText = await customerResponse.text();
-          console.error('Customer creation failed:', errorText);
-          throw new Error(`Failed to create customer: ${errorText}`);
-        }
-        
-        const customerResult = await customerResponse.json();
-        console.log('Customer created successfully:', customerResult);
-        
-        if (customerResult.data) {
-          // Tambahkan ke array lokal dengan data yang tepat
+        if (customerResponse.data.data) {
           const newCustomerData: Customer = {
-            id: customerResult.data.documentId,
+            id: customerResponse.data.data.documentId,
             image: null,
-            imagePreview: "http://localhost:1337" + uploadResult[0].url
+            imagePreview: `${env.PUBLIC_BASE_URL}${uploadResponse.data[0].url}`
           };
           
           customers = [...customers, newCustomerData];
@@ -296,7 +204,6 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
           showSuccessModal = true;
           setTimeout(() => {
             showSuccessModal = false;
-            // Reload data untuk memastikan sinkronisasi
             loadCustomer();
           }, 2000);
         } else {
@@ -307,13 +214,13 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
       }
     } catch (error: any) {
       console.error('Error saving customer:', error);
-      alert('Error saving customer: ' + (error?.message || 'Unknown error'));
+      alert('Error saving customer: ' + (error?.response?.data?.message || error?.message || 'Unknown error'));
     } finally {
       isLoading = false;
     }
   }
 
- // untuk mengipload image kesistem
+  // Handle image upload
   function handleImageUpload(event: Event) {
     const target = event.target as HTMLInputElement;
     const files = target.files;
@@ -326,7 +233,6 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
       return;
     }
 
-    
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       alert('Invalid file format. Please select a JPG, PNG, SVG, or WEBP file.');
@@ -343,7 +249,6 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
     reader.readAsDataURL(file);
   }
 
- 
   function handleFileInputClick(customerId: string = 'new-customer') {
     if (typeof document !== 'undefined') {
       const fileInput = document.getElementById(`file-${customerId}`) as HTMLInputElement | null;
@@ -357,47 +262,29 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
     customerToDelete = id;
     showDeleteModal = true;
   }
-  
-  // Hapus customer dari database
+
+  // Delete customer
   async function confirmDeleteCustomer() {
     if (isLoading) return;
     
-    const token = localStorage.getItem("accessToken");
     isLoading = true;
     
     try {
-      const response = await fetch(`http://localhost:1337/api/customers/${customerToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      await api.delete(`/api/customers/${customerToDelete}`);
       
-      if (response.ok) {
-        customers = customers.filter((customer) => customer.id !== customerToDelete);
-        closeDeleteModal();
-        showSuccessModal = true;
-        setTimeout(() => (showSuccessModal = false), 2000);
-      } else {
-        const errorText = await response.text();
-        throw new Error(`Delete failed: ${errorText}`);
-      }
+      customers = customers.filter((customer) => customer.id !== customerToDelete);
+      closeDeleteModal();
+      showSuccessModal = true;
+      setTimeout(() => (showSuccessModal = false), 2000);
     } catch (error: any) {
       console.error('Error deleting customer:', error);
-      alert('Error deleting customer: ' + (error?.message || 'Unknown error'));
+      alert('Error deleting customer: ' + (error?.response?.data?.message || error?.message || 'Unknown error'));
     } finally {
       isLoading = false;
     }
   }
 
-  
-  function updateCustomerName(id: string, name: string) {
-    customers = customers.map((customer) =>
-      customer.id === id ? { ...customer, name } : customer
-    );
-  }
-
-  // Update gambar customer yang sudah ada
+  // Update customer image
   async function handleImageUploadForCustomer(event: Event, customerId: string) {
     const target = event.target as HTMLInputElement;
     const files = target.files;
@@ -410,7 +297,6 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
       return;
     }
 
- 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       alert('Invalid file format. Please select a JPG, PNG, SVG, or WEBP file.');
@@ -421,68 +307,45 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
     
     if (isLoading) return;
     
-    const token = localStorage.getItem("accessToken");
     isLoading = true;
     
     try {
-      // Upload gambar baru
       const formData = new FormData();
       formData.append('files', file);
     
-      const uploadResponse = await fetch('http://localhost:1337/api/upload', {
-        method: 'POST',
+      const uploadResponse = await api.post('/api/upload', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+          'Content-Type': 'multipart/form-data'
+        }
       });
       
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image');
-      }
-      
-      const uploadResult = await uploadResponse.json();
-      
-      if (uploadResult.length > 0) {
-        const imageId = uploadResult[0].id;
+      if (uploadResponse.data.length > 0) {
+        const imageId = uploadResponse.data[0].id;
         
-        // Update customer dengan gambar baru
-        const customerResponse = await fetch(`http://localhost:1337/api/customers/${customerId}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            data: {
-              logo_customer: [imageId]
-            }
-          })
+        await api.put(`/api/customers/${customerId}`, {
+          data: {
+            logo_customer: imageId
+          }
         });
         
-        if (customerResponse.ok) {
-          // Update preview lokal
-          const reader = new FileReader();
-          reader.onload = function (e) {
-            if (e.target?.result) {
-              customers = customers.map((customer) =>
-                customer.id === customerId
-                  ? { ...customer, image: file, imagePreview: e.target?.result as string }
-                  : customer
-              );
-            }
-          };
-          reader.readAsDataURL(file);
-          
-          showSuccessModal = true;
-          setTimeout(() => (showSuccessModal = false), 2000);
-        } else {
-          throw new Error('Failed to update customer');
-        }
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          if (e.target?.result) {
+            customers = customers.map((customer) =>
+              customer.id === customerId
+                ? { ...customer, image: file, imagePreview: e.target?.result as string }
+                : customer
+            );
+          }
+        };
+        reader.readAsDataURL(file);
+        
+        showSuccessModal = true;
+        setTimeout(() => (showSuccessModal = false), 2000);
       }
     } catch (error: any) {
       console.error('Error updating customer image:', error);
-      alert('Error updating image: ' + (error?.message || 'Unknown error'));
+      alert('Error updating image: ' + (error?.response?.data?.message || error?.message || 'Unknown error'));
     } finally {
       isLoading = false;
     }
@@ -535,7 +398,6 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
         return;
       }
 
-     
       const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file format. Please select a JPG, PNG, SVG, or WEBP file.');
@@ -865,14 +727,12 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
     animation: spin 1s linear infinite;
   }
 
- 
   @media (min-width: 1024px) {
     .service-content {
       @apply p-6;
     }
   }
 
- 
   @media (max-width: 1366px) {
     .page-info h1 {
       @apply text-[18px];
@@ -882,7 +742,6 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
       @apply grid-cols-[repeat(auto-fill,minmax(160px,1fr))];
     }
   }
-
 
   @media (max-width: 768px) {
     .service-content {
@@ -914,7 +773,6 @@ const aboutUsResponse = await fetch(`http://localhost:1337/api/about-us`, {
     }
   }
 
-  
   @media (max-width: 480px) {
     .service-content {
       @apply p-3;

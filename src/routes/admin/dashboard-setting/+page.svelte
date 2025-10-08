@@ -1,6 +1,9 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
+	import api from '$lib/axios-instance';
+	import { env } from '$env/dynamic/public';
+    import { userName, userEmail } from '$lib/store';
     
     let userId = $state(null); 
     let selectedFile: File | null = $state(null);
@@ -23,26 +26,21 @@
     });
 
     onMount(async() => {
-        const token = localStorage.getItem("accessToken");
-        if (!token) {
+        try {
+            const res = await api.get("/api/users/me?populate=image");
+            const body = res.data;
+            console.log("User Data:", body);
+
+            userId = body.id;
+            fullName = body.username || "";
+            password = "";
+            email = body.email || "";
+            bio = body.bio || "";
+            profileImageSrc = body.image ? env.PUBLIC_BASE_URL + body.image.url : "/api/placeholder/120/120";
+        } catch (error) {
+            console.error("Failed to fetch user data:", error);
             goto("/login");
-            return;
         }
-
-        const res = await fetch("http://localhost:1337/api/users/me?populate=image", {
-            headers: {
-            "Authorization": "Bearer " + token
-            }
-        });
-        const body = await res.json();
-        console.log("User Data:", body);
-
-        userId = body.id;
-        fullName = body.username || "";
-        password = "";
-        email = body.email || "";
-        bio = body.bio || "";
-        profileImageSrc = body.image ? "http://localhost:1337" + body.image.url : "/api/placeholder/120/120";
     });
 
     let fileInput: HTMLInputElement | null = $state(null);
@@ -109,10 +107,10 @@
         const target = event.target as HTMLInputElement;
         const file = target.files?.[0];
         if (file) {
-            selectedFile = file; // Simpan file untuk upload
+            selectedFile = file;
             const reader = new FileReader();
             reader.onload = (e) => {
-                profileImageSrc = e.target?.result as string; // Preview gambar
+                profileImageSrc = e.target?.result as string;
             };
             reader.readAsDataURL(file);
             clearError('image');
@@ -120,7 +118,6 @@
             showError('image', 'Please select an image file');
         }
     }
-
 
     function redirectToDashboard(): void {
         goto('/admin');
@@ -131,115 +128,114 @@
     }
 
     async function handleSubmit(event: Event): Promise<void> {
-    event.preventDefault();
+        event.preventDefault();
 
-    clearAllErrors();
-    
-    let hasErrors = false;
-    
-    if (!fullName.trim()) {
-        showError('fullName', 'Full name is required');
-        hasErrors = true;
-    }
-    
-    if (email.trim() && !validateEmail(email)) {
-        showError('email', 'Please enter a valid email address');
-        hasErrors = true;
-    }
-    
-    if (password && !validatePassword(password)) {
-        showError('password', 'Password must be at least 6 characters long');
-        hasErrors = true;
-    }
-    
-    if (!bio.trim()) {
-        showError('bio', 'Bio cannot be empty');
-        hasErrors = true;
-    }
-    
-    if (hasErrors) {
-        return;
-    }
-    
-    isSubmitting = true;
-    showInlineSuccess = false;
+        clearAllErrors();
+        
+        let hasErrors = false;
+        
+        if (!fullName.trim()) {
+            showError('fullName', 'Full name is required');
+            hasErrors = true;
+        }
+        
+        if (email.trim() && !validateEmail(email)) {
+            showError('email', 'Please enter a valid email address');
+            hasErrors = true;
+        }
+        
+        if (password && !validatePassword(password)) {
+            showError('password', 'Password must be at least 6 characters long');
+            hasErrors = true;
+        }
+        
+        if (!bio.trim()) {
+            showError('bio', 'Bio cannot be empty');
+            hasErrors = true;
+        }
+        
+        if (hasErrors) {
+            return;
+        }
+        
+        isSubmitting = true;
+        showInlineSuccess = false;
 
-    const token = localStorage.getItem("accessToken");
-    if (!token || !userId) {
-        showError('general', 'Authentication error. Please log in again.');
-        isSubmitting = false;
-        return;
-    }
+        try {
+            let imageId: number | null = null;
 
-    try {
-        let imageId: number | null = null;
+            if (selectedFile) {
+                const formData = new FormData();
+                formData.append('files', selectedFile);
 
-        // Upload gambar jika ada
-        if (selectedFile) {
-            const formData = new FormData();
-            formData.append('files', selectedFile);
-
-            const uploadResponse = await fetch('http://localhost:1337/api/upload', {
-                method: 'POST',
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (!uploadResponse.ok) {
-                const errorData = await uploadResponse.json();
-                throw new Error(`Failed to upload image: ${errorData.error?.message || 'Unknown error'}`);
+                const uploadResponse = await api.post('/api/upload', formData);
+                imageId = uploadResponse.data[0].id;
             }
 
-            const uploadResult = await uploadResponse.json();
-            imageId = uploadResult[0].id; // Ambil ID gambar dari respons
+            const userData: any = {
+                username: fullName,
+                bio: bio
+            };
+            if (email) userData.email = email;
+            if (password) userData.password = password;
+            if (imageId) userData.image = imageId;
+
+            const updateResponse = await api.put(`/api/users/${userId}`, userData);
+            console.log(' Profile updated:', updateResponse.data);
+
+            //  Ambil ulang data user lengkap dengan image
+            const refreshed = await api.get('/api/users/me?populate=image');
+            const updatedUser = refreshed.data;
+            const newEmail = updatedUser.email;
+            const newAvatar = updatedUser.image 
+                ? env.PUBLIC_BASE_URL + updatedUser.image.url 
+                : "/api/placeholder/120/120";
+            
+            profileImageSrc = newAvatar;
+
+            console.log(' Updated user data:', {
+                userName: fullName,
+                userEmail: newEmail,
+                userAvatar: newAvatar
+            });
+
+            //  Update localStorage
+            localStorage.setItem('userName', fullName);
+            localStorage.setItem('userEmail', newEmail);
+            localStorage.setItem('userAvatar', newAvatar);
+            
+            //  Update Svelte stores
+            userName.set(fullName);
+            userEmail.set(newEmail);
+
+            //  TRIGGER CUSTOM EVENT untuk notify layout
+            window.dispatchEvent(new CustomEvent('userDataUpdated', {
+                detail: {
+                    userName: fullName,
+                    userEmail: newEmail,
+                    userAvatar: newAvatar
+                }
+            }));
+
+            console.log(' User data updated and event dispatched successfully');
+
+            isSubmitting = false;
+            showInlineSuccess = true;
+            showSuccessMessage = true;
+            createParticles();
+
+            setTimeout(() => {
+                redirectToDashboard();
+            }, 2000);
+
+        } catch (error: any) {
+            isSubmitting = false;
+            showError("general", 
+            error.response?.data?.error?.message ||
+            error.message ||  'An error occurred while saving profile.');
+            console.error(" Error updating profile:", error);
         }
-
-        // Siapkan data untuk update user
-        const userData: any = {
-            username: fullName,
-            bio: bio
-        };
-        if (email) userData.email = email;
-        if (password) userData.password = password;
-        if (imageId) userData.image = imageId;
-
-        // Update data pengguna
-        const updateResponse = await fetch(`http://localhost:1337/api/users/${userId}`, {
-            method: 'PUT',
-            headers: {
-                "Authorization": `Bearer ${token}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(userData)
-        });
-
-        if (!updateResponse.ok) {
-            const errorData = await updateResponse.json();
-            throw new Error(`Failed to update profile: ${errorData.error?.message || 'Unknown error'}`);
-        }
-
-        const updatedUser = await updateResponse.json();
-        console.log('Profile updated:', updatedUser);
-
-        // Tampilkan animasi sukses
-        isSubmitting = false;
-        showInlineSuccess = true;
-        showSuccessMessage = true;
-        createParticles();
-
-        // Redirect setelah 2 detik
-        setTimeout(() => {
-            redirectToDashboard();
-        }, 2000);
-
-    } catch (error: any) {
-        isSubmitting = false;
-        showError('general', error.message || 'An error occurred while saving profile.');
-        console.error('Error:', error);
     }
-}
     
     function closeModalAndRedirect(): void {
         showSuccessMessage = false;

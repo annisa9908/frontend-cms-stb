@@ -1,7 +1,9 @@
-<script>
-  import { onMount, onDestroy } from 'svelte';
+<script lang="ts">
+	import { applyAction } from '$app/forms';
   import { goto } from '$app/navigation';
-  import loginImage from '../../lib/assets/cms-stb-login.png';
+  import loginImage from '../../lib/assets/login.png';
+  import api from '$lib/axios-instance';
+  import { env } from '$env/dynamic/public';
 
   let email = $state('');
   let password = $state('');
@@ -16,36 +18,49 @@
   }
 
   async function login() {
-    const response = await fetch("http://localhost:1337/api/auth/local", {
-      method: "POST",
-      headers: {
-        'content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    try {
+      // Login request
+      const response = await api.post("/api/auth/local", {
         "identifier": email,
-        "password": password
-      })
-    })
-
-    const body = await response.json()
-
-    if (response.ok) {
-      //login berhasil
-      localStorage.setItem("acessToken", body.jwt);
+        "password": password 
+      });
+      
+      // Simpan token
+      localStorage.setItem("accessToken", response.data.jwt);
+      
+      // Ambil data user lengkap dengan populate image
+      const userResponse = await api.get("/api/users/me?populate=image");
+      const userData = userResponse.data;
+      
+      console.log('User data fetched:', userData);
+      
+      // Simpan data user ke localStorage
+      const userName = userData.username || 'Admin';
+      const userEmail = userData.email || email;
+      const userAvatar = userData.image 
+        ? env.PUBLIC_BASE_URL + userData.image.url 
+        : "/api/placeholder/40/40";
+      
+      localStorage.setItem('userName', userName);
+      localStorage.setItem('userEmail', userEmail);
+      localStorage.setItem('userAvatar', userAvatar);
+      
+      console.log('User data saved to localStorage:', {
+        userName,
+        userEmail,
+        userAvatar
+      });
+      
+      // Redirect ke admin
       goto("/admin");
-    } else {
-      //login gagal
-      alert(body.error?.message || "Email atau password salah");
+    } catch(e: any){
+      console.error('Login error:', e);
+      errorMessage = e.response?.data?.error?.message || "Login gagal. Periksa email dan password Anda.";
     }
-
-      //const response = axios.post("http://localhost:1337/api/auth/local", {
-      // "identifier": email,
-      // "password": password
-      //})
   }
 
   async function handleSubmit() {
-    console.log("Makanan")
+    console.log("Login attempt")
     isLoading = true;
     errorMessage = '';
 
@@ -54,7 +69,7 @@
       isLoading = false;
       return;
     }
-
+ 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       errorMessage = "Format email tidak valid";
